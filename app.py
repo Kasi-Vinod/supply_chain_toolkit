@@ -4,6 +4,7 @@ import io
 import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 st.set_page_config(page_title="Supply Chain Inventory Toolkit", layout="wide")
 
@@ -139,44 +140,39 @@ if run:
             st.subheader("EOQ Cost Curve")
             Q_star = res["EOQ"]
             q_max = max(100, int(Q_star * 4))
-            Qs = list(range(1, q_max + 1))
-            ordering_costs = [(D / q) * S for q in Qs]
-            holding_costs = [(q / 2.0) * res["h"] for q in Qs]
-            total_costs = [o + h for o, h in zip(ordering_costs, holding_costs)]
+            Qs = np.arange(1, q_max + 1)
+            ordering_costs = (D / Qs) * S
+            holding_costs = (Qs / 2.0) * res["h"]
+            total_costs = ordering_costs + holding_costs
 
             fig1 = plt.figure()
             plt.plot(Qs, ordering_costs, label="Ordering Cost")
             plt.plot(Qs, holding_costs, label="Holding Cost")
             plt.plot(Qs, total_costs, label="Total Cost", linewidth=2)
             plt.axvline(Q_star, linestyle="--", color="red", label=f"EOQ = {Q_star:.0f}")
+            plt.scatter([Q_star], [res["TLC"]], color="red")
             if discount_enabled and discount_Q:
                 plt.axvline(discount_Q, linestyle=":", color="green", label=f"Discount Q = {discount_Q:.0f}")
             plt.xlabel("Order Quantity Q")
             plt.ylabel("Annual Cost (USD)")
             plt.title("Ordering + Holding + Total Cost")
             plt.legend()
+            plt.xlim(0, q_max)
             st.pyplot(fig1)
 
-        # Inventory vs Time
+        # Inventory vs Time (Sawtooth)
         with col_top_right:
             st.subheader("Inventory over Time (ROP & Cycle)")
-            cycle_time = res["t_months"]
-            horizon = 12
-            months = list(range(horizon + 1))
-            inventory = []
-            Q = res["EOQ"]
-            ROP = res["ROP"]
-
-            level = Q
-            for m in months:
-                if level <= ROP:
-                    level = Q
-                inventory.append(level)
-                level -= D / 12
+            horizon = 12  # months
+            steps = 200
+            months = np.linspace(0, horizon, steps)
+            demand_per_month = D / 12
+            cycle_time = res["EOQ"] / demand_per_month
+            inventory = res["EOQ"] - (demand_per_month * (months % cycle_time))
 
             fig2 = plt.figure()
-            plt.step(months, inventory, where="post", label="Inventory Level")
-            plt.axhline(ROP, color="red", linestyle="--", label=f"ROP = {ROP:.0f}")
+            plt.plot(months, inventory, drawstyle="steps-post", label="Inventory Level")
+            plt.axhline(res["ROP"], color="red", linestyle="--", label=f"ROP = {res['ROP']:.0f}")
             plt.xlabel("Time (months)")
             plt.ylabel("Inventory Level")
             plt.title("Inventory Sawtooth Pattern")
