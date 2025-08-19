@@ -213,9 +213,16 @@ if run:
                 values = [res["total_base"], d["total_disc"]]
 
                 fig4 = plt.figure()
-                plt.bar(labels, values, color=["blue", "green"])
+                bars = plt.bar(labels, values, color=["blue", "green"])
                 plt.ylabel("USD / year")
                 plt.title("Base vs Discount Scenario")
+
+                # Add numbers on top of bars
+                for bar in bars:
+                    yval = bar.get_height()
+                    plt.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval), f"{yval:,.0f}", 
+                            ha='center', va='bottom', fontsize=10, fontweight='bold')
+
                 st.pyplot(fig4)
 
                 if d["accept"]:
