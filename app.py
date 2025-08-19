@@ -151,24 +151,73 @@ if run:
             else:
                 st.warning("❌ Do NOT accept the discount — total annual cost is HIGHER than base.")
 
+        # =================== DASHBOARD VISUALIZATIONS ===================
         st.markdown("---")
-        st.subheader("EOQ cost curve (ordering + holding)")
-        Q_star = res["EOQ"]
-        q_max = max(100, int(Q_star * 4))
-        Qs = list(range(1, q_max + 1))
-        costs = [(D * S / q) + (q * res["h"] / 2.0) for q in Qs]
+        st.markdown("## 📊 Visualizations")
 
-        fig = plt.figure()
-        plt.plot(Qs, costs)
-        plt.axvline(Q_star, linestyle="--")
-        if discount_enabled and discount_Q:
-            plt.axvline(discount_Q, linestyle=":")
-        plt.xlabel("Order quantity Q")
-        plt.ylabel("Annual logistics cost (USD)")
-        plt.title("Ordering + Holding cost curve")
-        st.pyplot(fig)
+        col_left, col_right = st.columns(2)
 
-        # Download results
+        # --- Left: EOQ Cost Curve ---
+        with col_left:
+            st.subheader("EOQ Cost Curve")
+            Q_star = res["EOQ"]
+            q_max = max(100, int(Q_star * 4))
+            Qs = list(range(1, q_max + 1))
+            ordering_costs = [(D / q) * S for q in Qs]
+            holding_costs = [(q / 2.0) * res["h"] for q in Qs]
+            total_costs = [o + h for o, h in zip(ordering_costs, holding_costs)]
+
+            fig1 = plt.figure()
+            plt.plot(Qs, ordering_costs, label="Ordering Cost")
+            plt.plot(Qs, holding_costs, label="Holding Cost")
+            plt.plot(Qs, total_costs, label="Total Cost", linewidth=2)
+            plt.axvline(Q_star, linestyle="--", color="red", label=f"EOQ = {Q_star:.0f}")
+            if discount_enabled and discount_Q:
+                plt.axvline(discount_Q, linestyle=":", color="green", label=f"Discount Q = {discount_Q:.0f}")
+            plt.xlabel("Order Quantity (Q)")
+            plt.ylabel("Annual Cost (USD)")
+            plt.title("Ordering + Holding + Total Cost")
+            plt.legend()
+            st.pyplot(fig1)
+
+        # --- Right: Inventory vs Time (ROP + Cycle) ---
+        with col_right:
+            st.subheader("Inventory over Time (ROP & Cycle)")
+            cycle_time = res["t_months"]  # months per cycle
+            horizon = 12  # simulate 12 months
+            months = list(range(horizon + 1))
+            inventory = []
+            Q = res["EOQ"]
+            ROP = res["ROP"]
+
+            level = Q
+            for m in months:
+                if level <= ROP:
+                    level = Q  # replenishment
+                inventory.append(level)
+                level -= D / 12  # monthly demand
+
+            fig2 = plt.figure()
+            plt.step(months, inventory, where="post", label="Inventory Level")
+            plt.axhline(ROP, color="red", linestyle="--", label=f"ROP = {ROP:.0f}")
+            plt.xlabel("Time (months)")
+            plt.ylabel("Inventory Level (units)")
+            plt.title("Inventory Sawtooth Pattern")
+            plt.legend()
+            st.pyplot(fig2)
+
+        # --- Bottom: TLC Breakdown ---
+        st.subheader("TLC Breakdown (Annual Costs)")
+        labels = ["Ordering Cost", "Holding Cost", "Total Logistics Cost"]
+        values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
+
+        fig3 = plt.figure()
+        plt.bar(labels, values, color=["skyblue", "orange", "green"])
+        plt.ylabel("USD / year")
+        plt.title("Cost Components Breakdown")
+        st.pyplot(fig3)
+
+        # =================== DOWNLOAD SECTION ===================
         results_text = (
             f"EOQ: {res['EOQ']:.2f}\n"
             f"TLC: {res['TLC']:.2f}\n"
