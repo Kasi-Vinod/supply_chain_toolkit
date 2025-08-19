@@ -137,25 +137,32 @@ if run:
         # EOQ Cost Curve
         with col_top_left:
             st.subheader("EOQ Cost Curve")
-            Q_star = res["EOQ"]
-            q_max = max(100, int(Q_star * 4))
-            Qs = list(range(1, q_max + 1))
-            ordering_costs = [(D / q) * S for q in Qs]
-            holding_costs = [(q / 2.0) * res["h"] for q in Qs]
-            total_costs = [o + h for o, h in zip(ordering_costs, holding_costs)]
 
-            fig1 = plt.figure()
-            plt.plot(Qs, ordering_costs, label="Ordering Cost")
-            plt.plot(Qs, holding_costs, label="Holding Cost")
-            plt.plot(Qs, total_costs, label="Total Cost", linewidth=2)
-            plt.axvline(Q_star, linestyle="--", color="red", label=f"EOQ = {Q_star:.0f}")
-            if discount_enabled and discount_Q:
-                plt.axvline(discount_Q, linestyle=":", color="green", label=f"Discount Q = {discount_Q:.0f}")
-            plt.xlabel("Order Quantity Q")
-            plt.ylabel("Annual Cost (USD)")
-            plt.title("Ordering + Holding + Total Cost")
-            plt.legend()
+            Q = np.linspace(1, eoq*3, 500)   # Focus around EOQ
+            OrderingCost = D*C / Q
+            HoldingCost = (Q/2) * C * h
+            TotalCost = OrderingCost + HoldingCost
+
+            fig1, ax1 = plt.subplots()
+
+            # Plot lines
+            ax1.plot(Q, OrderingCost, color="red", label="Ordering cost", linewidth=2)
+            ax1.plot(Q, HoldingCost, color="green", label="Carrying cost", linewidth=2)
+            ax1.plot(Q, TotalCost, color="blue", label="Total cost", linewidth=2)
+
+            # EOQ point
+            ax1.axvline(x=eoq, color="orange", linestyle="--", linewidth=2)
+            ax1.scatter(eoq, (D*C/eoq) + ((eoq/2)*C*h), color="orange", s=60, zorder=5)
+            ax1.text(eoq, (D*C/eoq) + ((eoq/2)*C*h), f"  EOQ = {int(eoq)}", color="orange", fontsize=10, va="bottom")
+
+            # Labels
+            ax1.set_xlabel("Reorder quantity (Q)")
+            ax1.set_ylabel("Annual cost")
+            ax1.set_title("EOQ Cost Curve")
+            ax1.legend(frameon=False)
+
             st.pyplot(fig1)
+
 
         # Inventory vs Time
         with col_top_right:
