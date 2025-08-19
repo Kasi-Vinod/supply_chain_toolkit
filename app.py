@@ -4,6 +4,7 @@ import io
 import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 st.set_page_config(page_title="Supply Chain Inventory Toolkit", layout="wide")
 
