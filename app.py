@@ -193,9 +193,15 @@ if run:
             values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
 
             fig3 = plt.figure()
-            plt.bar(labels, values, color=["skyblue", "orange", "green"])
+            bars = plt.bar(labels, values, color=["skyblue", "orange", "green"])
             plt.ylabel("USD / year")
             plt.title("Cost Components Breakdown")
+
+            # Add numbers on top of bars
+            for bar in bars:
+                yval = bar.get_height()
+                plt.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval), f"{yval:,.0f}", 
+                         ha='center', va='bottom', fontsize=10, fontweight='bold')
             st.pyplot(fig3)
 
         # Discount Analysis
