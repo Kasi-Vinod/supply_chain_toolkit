@@ -76,7 +76,13 @@ def compute_eoq(D, C, S, h_rate, lead_time_months,
     return results
 
 # ---------- UI ----------
-st.title("📦 Supply Chain Inventory Toolkit")
+col1, col2 = st.columns([1,4])
+with col1:
+    st.image("vk_logo.png", width=100)  # adjust size
+with col2:
+    st.title("📦 Supply Chain Toolkit")
+    st.markdown("### Smarter Decisions")
+
 st.markdown("Calculate EOQ, Total Logistics Cost, time between orders, reorder point, and evaluate supplier discounts.")
 
 with st.sidebar:
