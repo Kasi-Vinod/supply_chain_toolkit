@@ -5,7 +5,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 
-st.set_page_config(page_title="Supply Chain Inventory Toolkit", page_icon="📦", layout="wide")
+st.set_page_config(page_title="Supply Chain Inventory Toolkit", layout="wide")
 
 SAMPLES = {
     "Custom": None,
