@@ -139,31 +139,29 @@ if run:
         with col_top_left:
             st.subheader("EOQ Cost Curve")
 
-            Q = np.linspace(1, eoq*3, 500)   # Focus around EOQ
-            OrderingCost = D*C / Q
-            HoldingCost = (Q/2) * C * h
-            TotalCost = OrderingCost + HoldingCost
+            Q = np.linspace(1, res["EOQ"]*3, 500)   # Focus around EOQ
+            OrderingCost = (D / Q) * S
+            HoldingCost = (Q / 2) * res["h"]
+            TotalCost = OrderingCost + HoldingCost + (D * C)
 
             fig1, ax1 = plt.subplots()
 
-            # Plot lines
             ax1.plot(Q, OrderingCost, color="red", label="Ordering cost", linewidth=2)
             ax1.plot(Q, HoldingCost, color="green", label="Carrying cost", linewidth=2)
             ax1.plot(Q, TotalCost, color="blue", label="Total cost", linewidth=2)
 
-            # EOQ point
-            ax1.axvline(x=eoq, color="orange", linestyle="--", linewidth=2)
-            ax1.scatter(eoq, (D*C/eoq) + ((eoq/2)*C*h), color="orange", s=60, zorder=5)
-            ax1.text(eoq, (D*C/eoq) + ((eoq/2)*C*h), f"  EOQ = {int(eoq)}", color="orange", fontsize=10, va="bottom")
+            ax1.axvline(x=res["EOQ"], color="orange", linestyle="--", linewidth=2)
+            ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C, 
+                        color="orange", s=60, zorder=5)
+            ax1.text(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C,
+                     f"  EOQ = {int(res['EOQ'])}", color="orange", fontsize=10, va="bottom")
 
-            # Labels
             ax1.set_xlabel("Reorder quantity (Q)")
             ax1.set_ylabel("Annual cost")
             ax1.set_title("EOQ Cost Curve")
             ax1.legend(frameon=False)
 
             st.pyplot(fig1)
-
 
         # Inventory vs Time
         with col_top_right:
@@ -200,15 +198,16 @@ if run:
             labels = ["Ordering Cost", "Holding Cost", "Total Logistics Cost"]
             values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
 
-            fig3 = plt.figure()
-            bars = plt.bar(labels, values, color=["skyblue", "orange", "green"])
-            plt.ylabel("USD / year")
-            plt.title("Cost Components Breakdown")
+            fig3, ax3 = plt.subplots()
+            bars = ax3.bar(labels, values, color=["skyblue", "orange", "green"])
+            ax3.set_ylabel("USD / year")
+            ax3.set_title("Cost Components Breakdown")
 
             for bar in bars:
                 yval = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval), f"{yval:,.0f}", 
-                        ha='center', va='bottom', fontsize=10, fontweight='bold')            
+                ax3.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval),
+                         f"{yval:,.0f}", ha='center', va='bottom',
+                         fontsize=10, fontweight='bold')
             st.pyplot(fig3)
 
         # Discount Analysis
@@ -219,15 +218,16 @@ if run:
                 labels = [f"Base EOQ ({res['EOQ']:.0f})", f"Discount Q ({d['discount_Q']:.0f})"]
                 values = [res["total_base"], d["total_disc"]]
 
-                fig4 = plt.figure()
-                bars = plt.bar(labels, values, color=["blue", "green"])
-                plt.ylabel("USD / year")
-                plt.title("Base vs Discount Scenario")
+                fig4, ax4 = plt.subplots()
+                bars = ax4.bar(labels, values, color=["blue", "green"])
+                ax4.set_ylabel("USD / year")
+                ax4.set_title("Base vs Discount Scenario")
 
                 for bar in bars:
                     yval = bar.get_height()
-                    plt.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval), f"{yval:,.0f}", 
-                            ha='center', va='bottom', fontsize=10, fontweight='bold')                
+                    ax4.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval),
+                             f"{yval:,.0f}", ha='center', va='bottom',
+                             fontsize=10, fontweight='bold')
                 st.pyplot(fig4)
 
                 if d["accept"]:
