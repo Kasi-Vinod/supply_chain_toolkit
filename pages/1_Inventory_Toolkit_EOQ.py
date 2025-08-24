@@ -9,11 +9,12 @@ import numpy as np
 # For PDF export
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-# ---------------- Presets ----------------
+# DO NOT call st.set_page_config here (it's set in main.py)
+
 SAMPLES = {
     "Custom": None,
     "Coffee Co (your case)": {
@@ -26,7 +27,7 @@ SAMPLES = {
     }
 }
 
-# ---------------- EOQ Calculation ----------------
+# ---------- Calculation function ----------
 def compute_eoq(D, C, S, h_rate, lead_time_months,
                 discount_enabled=False, discount_Q=None, discount_rate=0.0):
     if D <= 0 or C <= 0 or h_rate <= 0:
@@ -67,7 +68,7 @@ def compute_eoq(D, C, S, h_rate, lead_time_months,
             "annual_savings": annual_savings
         }
 
-    return {
+    results = {
         "EOQ": Q_star,
         "h": h,
         "OrderingCost": ordering_cost,
@@ -80,8 +81,10 @@ def compute_eoq(D, C, S, h_rate, lead_time_months,
         "total_base": total_base,
         "discount": discount
     }
+    return results
 
-# ---------------- UI ----------------
+
+# ---------- UI ----------
 col1, col2 = st.columns([1,4])
 with col1:
     try:
@@ -118,10 +121,15 @@ with st.sidebar:
 
 if run:
     try:
-        res = compute_eoq(D, C, S, h_rate, lead_time_months,
-                          discount_enabled, discount_Q, discount_rate)
+        res = compute_eoq(
+            D=float(D), C=float(C), S=float(S), h_rate=float(h_rate),
+            lead_time_months=float(lead_time_months),
+            discount_enabled=bool(discount_enabled),
+            discount_Q=float(discount_Q) if discount_enabled else None,
+            discount_rate=float(discount_rate) if discount_enabled else 0.0
+        )
 
-        # ---- Metrics ----
+        # --- Metrics ---
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("EOQ (units)", f"{res['EOQ']:.2f}")
@@ -133,10 +141,10 @@ if run:
             st.metric("Holding Cost (USD/yr)", f"{res['HoldingCost']:.2f}")
             st.metric("Time between orders", f"{res['t_months']:.2f} mo (~{res['t_days']:.0f} days)")
 
-        # ---- Graphs ----
         st.markdown("---")
         st.markdown("## 📊 Visualizations")
 
+        # --- Graphs (UNCHANGED) ---
         col_top_left, col_top_right = st.columns(2)
 
         # EOQ Cost Curve
@@ -148,58 +156,82 @@ if run:
             TotalCost = OrderingCost + HoldingCost + (D * C)
 
             fig1, ax1 = plt.subplots()
-            ax1.plot(Q, OrderingCost, "r", label="Ordering cost")
-            ax1.plot(Q, HoldingCost, "g", label="Carrying cost")
-            ax1.plot(Q, TotalCost, "b", label="Total cost")
-            ax1.axvline(x=res["EOQ"], color="orange", linestyle="--")
+            ax1.plot(Q, OrderingCost, color="red", label="Ordering cost", linewidth=2)
+            ax1.plot(Q, HoldingCost, color="green", label="Carrying cost", linewidth=2)
+            ax1.plot(Q, TotalCost, color="blue", label="Total cost", linewidth=2)
+            ax1.axvline(x=res["EOQ"], color="orange", linestyle="--", linewidth=2)
+            ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C,
+                        color="orange", s=60, zorder=5)
+            ax1.set_xlabel("Reorder quantity (Q)")
+            ax1.set_ylabel("Annual cost")
+            ax1.set_title("EOQ Cost Curve")
+            ax1.legend(frameon=False)
             st.pyplot(fig1)
 
-        # Inventory Sawtooth
+        # Inventory vs Time
         with col_top_right:
-            st.subheader("Inventory over Time")
+            st.subheader("Inventory over Time (ROP & Cycle)")
             months = list(range(13))
             inventory = []
-            level = res["EOQ"]
+            Q = res["EOQ"]
+            ROP = res["ROP"]
+            level = Q
             for m in months:
-                if level <= res["ROP"]:
-                    level = res["EOQ"]
+                if level <= ROP:
+                    level = Q
                 inventory.append(level)
-                level -= D/12
+                level -= D / 12
             fig2 = plt.figure()
-            plt.step(months, inventory, where="post")
-            plt.axhline(res["ROP"], color="red", linestyle="--")
+            plt.step(months, inventory, where="post", label="Inventory Level")
+            plt.axhline(ROP, color="red", linestyle="--", label=f"ROP = {ROP:.0f}")
+            plt.xlabel("Time (months)")
+            plt.ylabel("Inventory Level")
+            plt.title("Inventory Sawtooth Pattern")
+            plt.legend()
             st.pyplot(fig2)
 
-        # Bottom row
+        # TLC Breakdown
         col_bottom_left, col_bottom_right = st.columns(2)
         with col_bottom_left:
             st.subheader("TLC Breakdown")
+            labels = ["Ordering Cost", "Holding Cost", "TLC"]
+            values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
             fig3, ax3 = plt.subplots()
-            ax3.bar(["Ordering", "Holding", "TLC"], [res["OrderingCost"], res["HoldingCost"], res["TLC"]])
+            bars = ax3.bar(labels, values, color=["skyblue", "orange", "green"])
+            for bar in bars:
+                yval = bar.get_height()
+                ax3.text(bar.get_x()+bar.get_width()/2, yval+(0.01*yval),
+                         f"{yval:,.0f}", ha='center', va='bottom')
             st.pyplot(fig3)
 
+        # Discount Analysis
         with col_bottom_right:
             st.subheader("Discount Analysis")
             if res["discount"]:
                 d = res["discount"]
+                labels = [f"Base EOQ ({res['EOQ']:.0f})", f"Discount Q ({d['discount_Q']:.0f})"]
+                values = [res["total_base"], d["total_disc"]]
                 fig4, ax4 = plt.subplots()
-                ax4.bar(["Base", "Discount"], [res["total_base"], d["total_disc"]])
+                bars = ax4.bar(labels, values, color=["blue", "green"])
+                for bar in bars:
+                    yval = bar.get_height()
+                    ax4.text(bar.get_x()+bar.get_width()/2, yval+(0.01*yval),
+                             f"{yval:,.0f}", ha='center', va='bottom')
                 st.pyplot(fig4)
             else:
                 fig4 = None
 
-        # ---- PDF Export ----
+        # --- PDF Export ---
         st.markdown("---")
-
-        from reportlab.pdfgen import canvas
 
         def header_footer(canvas, doc):
             width, height = A4
             canvas.setStrokeColor(colors.grey)
-            canvas.line(30, height-60, width-30, height-60)
-            canvas.line(30, 40, width-30, 40)
+            canvas.line(30, height-60, width-30, height-60)  # Header border
+            canvas.line(30, 40, width-30, 40)                # Footer border
+
             try:
-                canvas.drawImage("vk_logo.png", 30, height-50, width=50, height=30, mask='auto')
+                canvas.drawImage("vk_logo.png", 30, height-50, width=50, height=30, preserveAspectRatio=True, mask='auto')
             except:
                 pass
             canvas.setFont("Helvetica-Bold", 12)
@@ -215,44 +247,55 @@ if run:
                                     topMargin=80, bottomMargin=60,
                                     leftMargin=30, rightMargin=30)
             styles = getSampleStyleSheet()
-            styles.add(ParagraphStyle(name="SectionHeading", fontSize=10,
-                                      leading=12, textColor=colors.darkblue,
-                                      spaceAfter=4, fontName="Helvetica-Bold"))
             elements = []
 
-            # Summary
-            elements.append(Paragraph("Summary", styles["SectionHeading"]))
-            summary_text = f"EOQ: <b>{res['EOQ']:.0f}</b> units, TLC: <b>{res['TLC']:.0f}</b> USD/yr, ROP: <b>{res['ROP']:.0f}</b> units."
+            # --- Summary ---
+            elements.append(Paragraph("<b>Summary</b>", styles['Heading2']))
+            summary_text = f"""
+            EOQ is <b>{res['EOQ']:.0f} units</b>, TLC <b>{res['TLC']:.0f} USD/yr</b>,
+            ROP <b>{res['ROP']:.0f} units</b>.
+            """
             elements.append(Paragraph(summary_text, styles['Normal']))
-            elements.append(Spacer(1, 0.15*inch))
+            elements.append(Spacer(1, 0.2*inch))
 
-            # Inputs
-            elements.append(Paragraph("Inputs Used", styles["SectionHeading"]))
+            # --- Inputs ---
+            elements.append(Paragraph("<b>Inputs Used</b>", styles['Heading2']))
             inputs_data = [
                 ["Annual Demand", f"{D:.0f}", "Unit Price", f"{C:.2f}"],
                 ["Ordering Cost", f"{S:.2f}", "Holding Rate", f"{h_rate:.2%}"],
                 ["Lead Time", f"{lead_time_months:.1f}", "Discount Enabled", str(discount_enabled)],
-                ["Discount Q", f"{discount_Q:.0f}" if discount_enabled else "—", "Discount Rate", f"{discount_rate:.0%}" if discount_enabled else "—"]
+                ["Discount Q", f"{discount_Q:.0f}" if discount_enabled else "—",
+                 "Discount Rate", f"{discount_rate:.0%}" if discount_enabled else "—"]
             ]
             t_inputs = Table(inputs_data, colWidths=[1.6*inch]*4)
-            t_inputs.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.5,colors.grey), ('BACKGROUND',(0,0),(-1,0),colors.lightblue), ('FONTSIZE',(0,0),(-1,-1),8), ('ALIGN',(0,0),(-1,-1),'CENTER')]))
+            t_inputs.setStyle(TableStyle([
+                ('GRID',(0,0),(-1,-1),0.5,colors.grey),
+                ('BACKGROUND',(0,0),(-1,0),colors.lightblue),
+                ('FONTSIZE',(0,0),(-1,-1),8),
+                ('ALIGN',(0,0),(-1,-1),'CENTER')
+            ]))
             elements.append(t_inputs)
-            elements.append(Spacer(1, 0.15*inch))
+            elements.append(Spacer(1, 0.2*inch))
 
-            # Results
-            elements.append(Paragraph("Results", styles["SectionHeading"]))
+            # --- Results ---
+            elements.append(Paragraph("<b>Results</b>", styles['Heading2']))
             results_data = [
                 ["EOQ", f"{res['EOQ']:.2f}", "TLC", f"{res['TLC']:.2f}"],
                 ["Ordering Cost", f"{res['OrderingCost']:.2f}", "Holding Cost", f"{res['HoldingCost']:.2f}"],
                 ["ROP", f"{res['ROP']:.2f}", "Cycle Time", f"{res['t_months']:.2f} mo (~{res['t_days']:.0f} d)"]
             ]
             t_results = Table(results_data, colWidths=[1.6*inch]*4)
-            t_results.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.5,colors.grey), ('BACKGROUND',(0,0),(-1,0),colors.lightgreen), ('FONTSIZE',(0,0),(-1,-1),8), ('ALIGN',(0,0),(-1,-1),'CENTER')]))
+            t_results.setStyle(TableStyle([
+                ('GRID',(0,0),(-1,-1),0.5,colors.grey),
+                ('BACKGROUND',(0,0),(-1,0),colors.lightgreen),
+                ('FONTSIZE',(0,0),(-1,-1),8),
+                ('ALIGN',(0,0),(-1,-1),'CENTER')
+            ]))
             elements.append(t_results)
-            elements.append(Spacer(1, 0.15*inch))
+            elements.append(Spacer(1, 0.2*inch))
 
-            # Graphs
-            elements.append(Paragraph("Graphs", styles["SectionHeading"]))
+            # --- Graphs ---
+            elements.append(Paragraph("<b>Graphs</b>", styles['Heading2']))
             row, count = [], 0
             for fig in figs:
                 if fig:
@@ -268,11 +311,13 @@ if run:
             if row:
                 elements.append(Table([row], colWidths=[3.2*inch]*len(row)))
 
-            # Recommendations
-            elements.append(Paragraph("Recommendations", styles["SectionHeading"]))
-            rec = """• Review supplier discount options<br/>
+            # --- Recommendations ---
+            elements.append(Paragraph("<b>Recommendations</b>", styles['Heading2']))
+            rec = """
+            • Review supplier discount options<br/>
             • Reduce lead time to lower ROP<br/>
-            • Monitor carrying cost rate"""
+            • Monitor carrying cost rate
+            """
             elements.append(Paragraph(rec, styles['Normal']))
 
             doc.build(elements, onFirstPage=header_footer, onLaterPages=header_footer)
@@ -281,10 +326,17 @@ if run:
             return pdf
 
         figs = [fig1, fig2, fig3]
-        if fig4: figs.append(fig4)
+        if fig4:
+            figs.append(fig4)
+
         pdf_bytes = create_pdf(res, figs)
 
-        st.download_button("📄 Download One-Page Report (PDF)", pdf_bytes, "EOQ_Report.pdf", "application/pdf")
+        st.download_button(
+            label="📄 Download One-Page Report (PDF)",
+            data=pdf_bytes,
+            file_name="EOQ_Report.pdf",
+            mime="application/pdf"
+        )
 
     except Exception as e:
         st.error(f"Error during calculation: {e}")
