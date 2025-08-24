@@ -67,29 +67,39 @@ def mcabc_analysis(
     out["MCABC_Class"] = out["Cum%"].apply(lambda p: _pct_bins_classifier(p, a_pct, b_pct))
     return out
 
-def customer_segmentation(df: pd.DataFrame, margin_threshold: float) -> pd.DataFrame:
+def customer_segmentation(df: pd.DataFrame, a_pct: float, b_pct: float) -> pd.DataFrame:
     out = df.copy()
     out["Profit"] = out["Revenue"] - out["CostToServe"]
     out["ProfitMargin"] = np.where(out["Revenue"] > 0, out["Profit"] / out["Revenue"], 0.0)
 
+    # Aggregate by customer
     agg = out.groupby("Customer", as_index=False).agg({"Revenue": "sum", "Profit": "sum"})
     agg["ProfitMargin"] = np.where(agg["Revenue"] > 0, agg["Profit"] / agg["Revenue"], 0.0)
 
-    rev_med = agg["Revenue"].median()
-    thr = margin_threshold / 100.0
+    # --- Step 1: ABC by Revenue ---
+    agg = agg.sort_values("Revenue", ascending=False).reset_index(drop=True)
+    total = agg["Revenue"].sum()
+    agg["CumulativeRevenue"] = agg["Revenue"].cumsum()
+    agg["Cumulative%"] = np.where(total > 0, 100 * agg["CumulativeRevenue"] / total, 0.0)
+    agg["ABC_Class"] = agg["Cumulative%"].apply(lambda p: _pct_bins_classifier(p, a_pct, b_pct))
 
-    def _label(row):
-        rev_high = row["Revenue"] >= rev_med
-        margin_high = row["ProfitMargin"] >= thr
-        if rev_high and margin_high:
-            return "Key Account"
-        if rev_high and not margin_high:
-            return "High Rev - Low Margin"
-        if (not rev_high) and margin_high:
-            return "Growth / Niche"
-        return "Standard"
+    # --- Step 2: Subdivide each class into A, B, C by Profit ---
+    subcats = []
+    for abc_cat in ["A", "B", "C"]:
+        sub_df = agg[agg["ABC_Class"] == abc_cat].copy()
+        if len(sub_df) == 0:
+            continue
+        sub_df = sub_df.sort_values("Profit", ascending=False).reset_index(drop=True)
+        total_profit = sub_df["Profit"].sum()
+        sub_df["CumProfit"] = sub_df["Profit"].cumsum()
+        sub_df["Profit%"] = np.where(total_profit > 0, 100 * sub_df["CumProfit"] / total_profit, 0.0)
+        sub_df["SubClass"] = sub_df["Profit%"].apply(lambda p: _pct_bins_classifier(p, a_pct, b_pct))
+        sub_df["FinalClass"] = sub_df["ABC_Class"] + "-" + sub_df["SubClass"]
+        subcats.append(sub_df)
 
-    agg["Segment"] = agg.apply(_label, axis=1)
+    if subcats:
+        agg = pd.concat(subcats).sort_index()
+
     return agg
 
 def kraljic_segmentation(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
@@ -116,7 +126,7 @@ with col1:
         pass
 with col2:
     st.title("Segmentation Toolkit")
-    st.caption("Products: ABC/MCABC • Customers: Profitability • Suppliers: Kraljic")
+    st.caption("Products: ABC/MCABC • Customers: Profitability + Revenue-ABC • Suppliers: Kraljic")
 
 # ---------- Tabs ----------
 tab_prod, tab_cust, tab_sup = st.tabs([
@@ -211,7 +221,12 @@ with tab_cust:
     st.subheader("Upload Customer Data (CSV or Excel)")
     fc = st.file_uploader("Customers file", type=["csv","xlsx"], key="cust_upload")
 
-    margin_thr = st.slider("Profit margin threshold (%)", 5, 50, 20)
+    colA, colB = st.columns(2)
+    with colA:
+        a_pct_cust = st.slider("A coverage % (Revenue)", 50, 80, 70, key="cust_a")
+    with colB:
+        b_pct_cust = st.slider("B coverage % (Revenue)", 10, 30, 20, key="cust_b")
+
     runc = st.button("Run Customer Analysis")
     if runc:
         if fc is None:
@@ -227,17 +242,19 @@ with tab_cust:
                 if not needed.issubset(cdf.columns):
                     st.error(f"Missing required columns: {sorted(list(needed - set(cdf.columns)))}")
                 else:
-                    seg = customer_segmentation(cdf, margin_thr)
-                    st.markdown("### Customer Segments")
+                    seg = customer_segmentation(cdf, a_pct_cust, b_pct_cust)
+                    st.markdown("### Customer Segments (ABC + Subclass)")
                     st.dataframe(seg, use_container_width=True)
 
                     # Scatter: Revenue vs Profit Margin
                     st.markdown("**Revenue vs Profit Margin (%)**")
                     fig, ax = plt.subplots()
-                    ax.scatter(seg["Revenue"], seg["ProfitMargin"]*100)
+                    for name, grp in seg.groupby("FinalClass"):
+                        ax.scatter(grp["Revenue"], grp["ProfitMargin"]*100, label=name)
                     ax.set_xlabel("Revenue")
                     ax.set_ylabel("Profit Margin (%)")
-                    ax.set_title("Customer Segmentation Matrix")
+                    ax.set_title("Customer Segmentation (ABC & Subclasses)")
+                    ax.legend()
                     st.pyplot(fig, clear_figure=True)
 
                     st.markdown("---")
