@@ -234,65 +234,64 @@ if run:
                 fig4 = None
                 st.info("No discount scenario enabled.")
 
-        # --- PDF Export only (removed TXT & CSV) ---
-        st.markdown("---")
+# --- PDF Export only (removed TXT & CSV) ---
+st.markdown("---")
 
-        def create_pdf(res, figs):
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4)
-            styles = getSampleStyleSheet()
-            elements = []
+def create_pdf(res, figs):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    elements = []
 
-            # --- Summary ---
-            summary_text = f"""
-            <b>EOQ Analysis Report</b><br/>
-            EOQ for this scenario is <b>{res['EOQ']:.0f} units</b>, 
-            with a total logistics cost of <b>{res['TLC']:.0f} USD/yr</b>. 
-            Recommended reorder point (ROP) is <b>{res['ROP']:.0f}</b>.
-            """
-            elements.append(Paragraph(summary_text, styles['Normal']))
-            elements.append(Spacer(1, 0.3*inch))
+    # --- Summary ---
+    summary_text = f"""
+    <b>EOQ Analysis Report</b><br/>
+    EOQ for this scenario is <b>{res['EOQ']:.0f} units</b>, 
+    with a total logistics cost of <b>{res['TLC']:.0f} USD/yr</b>. 
+    Recommended reorder point (ROP) is <b>{res['ROP']:.0f}</b>.
+    """
+    elements.append(Paragraph(summary_text, styles['Normal']))
+    elements.append(Spacer(1, 0.2*inch))
 
-            # --- Key Metrics ---
-            metrics_text = f"""
-            EOQ: {res['EOQ']:.2f}<br/>
-            Total Logistics Cost: {res['TLC']:.2f}<br/>
-            Ordering Cost: {res['OrderingCost']:.2f}<br/>
-            Holding Cost: {res['HoldingCost']:.2f}<br/>
-            Reorder Point: {res['ROP']:.2f}<br/>
-            Time between orders: {res['t_months']:.2f} months (~{res['t_days']:.0f} days)
-            """
-            elements.append(Paragraph(metrics_text, styles['Normal']))
-            elements.append(Spacer(1, 0.3*inch))
+    # --- Key Metrics as Tiles (Table) ---
+    data = [
+        ["EOQ", f"{res['EOQ']:.2f}", "TLC", f"{res['TLC']:.2f}"],
+        ["Ordering Cost", f"{res['OrderingCost']:.2f}", "Holding Cost", f"{res['HoldingCost']:.2f}"],
+        ["ROP", f"{res['ROP']:.2f}", "Cycle Time", f"{res['t_months']:.2f} mo (~{res['t_days']:.0f} d)"]
+    ]
+    from reportlab.platypus import Table, TableStyle
+    from reportlab.lib import colors
+    table = Table(data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.2*inch))
 
-            # --- Figures ---
-            for fig in figs:
-                if fig:
-                    img_buf = io.BytesIO()
-                    fig.savefig(img_buf, format='png', dpi=150, bbox_inches="tight")
-                    img_buf.seek(0)
-                    elements.append(Image(img_buf, width=6*inch, height=3.5*inch))
-                    elements.append(Spacer(1, 0.2*inch))
+    # --- Graphs in a Grid (2x2 layout) ---
+    row = []
+    count = 0
+    for fig in figs:
+        if fig:
+            img_buf = io.BytesIO()
+            fig.savefig(img_buf, format='png', dpi=120, bbox_inches="tight")
+            img_buf.seek(0)
+            row.append(Image(img_buf, width=3.5*inch, height=2.5*inch))
+            count += 1
+            if count % 2 == 0:   # 2 per row
+                elements.append(row)
+                elements.append(Spacer(1, 0.1*inch))
+                row = []
+    if row:
+        elements.append(row)
 
-            doc.build(elements)
-            pdf = buffer.getvalue()
-            buffer.close()
-            return pdf
-
-        figs = [fig1, fig2, fig3]
-        if fig4:
-            figs.append(fig4)
-
-        pdf_bytes = create_pdf(res, figs)
-
-        st.download_button(
-            label="📄 Download Full Report (PDF)",
-            data=pdf_bytes,
-            file_name="EOQ_Report.pdf",
-            mime="application/pdf"
-        )
-
-    except Exception as e:
-        st.error(f"Error during calculation: {e}")
-else:
-    st.info("Enter inputs in the sidebar and press **Calculate**.")
+    # --- Build PDF ---
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
