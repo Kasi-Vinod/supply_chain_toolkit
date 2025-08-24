@@ -1,4 +1,4 @@
-# app.py
+# pages/1_Inventory_Toolkit_EOQ.py
 import math
 import io
 import streamlit as st
@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Supply Chain Inventory Toolkit", layout="wide")
+# DO NOT call st.set_page_config here (it's set in main.py)
 
 SAMPLES = {
     "Custom": None,
@@ -79,9 +79,12 @@ def compute_eoq(D, C, S, h_rate, lead_time_months,
 # ---------- UI ----------
 col1, col2 = st.columns([1,4])
 with col1:
-    st.image("vk_logo.png", width=100)
+    try:
+        st.image("vk_logo.png", width=100)
+    except Exception:
+        pass
 with col2:
-    st.title("📦 Supply Chain Toolkit")
+    st.title("📦 Supply Chain Toolkit — EOQ")
     st.markdown("### Smarter Decisions")
 
 st.markdown("Calculate EOQ, Total Logistics Cost, time between orders, reorder point, and evaluate supplier discounts.")
@@ -163,12 +166,10 @@ if run:
 
             st.pyplot(fig1)
 
-        # Inventory vs Time
+        # Inventory vs Time (Sawtooth)
         with col_top_right:
             st.subheader("Inventory over Time (ROP & Cycle)")
-            cycle_time = res["t_months"]
-            horizon = 12
-            months = list(range(horizon + 1))
+            months = list(range(13))
             inventory = []
             Q = res["EOQ"]
             ROP = res["ROP"]
