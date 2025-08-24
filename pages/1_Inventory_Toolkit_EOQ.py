@@ -12,7 +12,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib import colors
-from datetime import datetime
 
 # DO NOT call st.set_page_config here (it's set in main.py)
 
@@ -150,7 +149,7 @@ if run:
         with col_top_left:
             st.subheader("EOQ Cost Curve")
 
-            Q = np.linspace(1, res["EOQ"]*3, 500)
+            Q = np.linspace(1, res["EOQ"]*3, 500)   # Focus around EOQ
             OrderingCost = (D / Q) * S
             HoldingCost = (Q / 2) * res["h"]
             TotalCost = OrderingCost + HoldingCost + (D * C)
@@ -162,6 +161,8 @@ if run:
             ax1.axvline(x=res["EOQ"], color="orange", linestyle="--", linewidth=2)
             ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C, 
                         color="orange", s=60, zorder=5)
+            ax1.text(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C,
+                     f"  EOQ = {int(res['EOQ'])}", color="orange", fontsize=10, va="bottom")
             ax1.set_xlabel("Reorder quantity (Q)")
             ax1.set_ylabel("Annual cost")
             ax1.set_title("EOQ Cost Curve")
@@ -234,7 +235,7 @@ if run:
                 fig4 = None
                 st.info("No discount scenario enabled.")
 
-        # --- PDF Export (Inputs + single page layout) ---
+        # --- PDF Export (single page, inputs+results as tiles + graphs grid) ---
         st.markdown("---")
 
         def create_pdf(res, figs):
@@ -243,52 +244,21 @@ if run:
             styles = getSampleStyleSheet()
             elements = []
 
-            # --- Header ---
-            header = f"<b>EOQ Analysis Report</b> | {datetime.today().strftime('%d %b %Y')}"
-            elements.append(Paragraph(header, styles['Title']))
+            # --- Title ---
+            elements.append(Paragraph("<b>EOQ Analysis Report</b>", styles['Heading1']))
             elements.append(Spacer(1, 0.2*inch))
 
-            # --- Inputs Section ---
+            # --- Inputs as Grid ---
             elements.append(Paragraph("<b>Inputs Used</b>", styles['Heading2']))
             inputs_data = [
-                ["Annual Demand (D)", f"{D:.0f} units"],
-                ["Unit Price (C)", f"{C:.2f} USD/unit"],
-                ["Ordering Cost (S)", f"{S:.2f} USD/order"],
-                ["Holding Cost Rate (h)", f"{h_rate:.2%}"],
-                ["Lead Time", f"{lead_time_months:.1f} months"],
+                ["Annual Demand (D)", f"{D:.0f} units", "Unit Price (C)", f"{C:.2f} USD/unit"],
+                ["Ordering Cost (S)", f"{S:.2f} USD/order", "Holding Cost Rate (h)", f"{h_rate:.2%}"],
+                ["Lead Time", f"{lead_time_months:.1f} months", 
+                 "Discount Threshold Q", f"{discount_Q:.0f} units" if discount_enabled else "—"],
+                ["Discount Rate", f"{discount_rate:.0%}" if discount_enabled else "—", "", ""]
             ]
-            if discount_enabled:
-                inputs_data.append(["Discount Threshold Q", f"{discount_Q:.0f} units"])
-                inputs_data.append(["Discount Rate", f"{discount_rate:.0%}"])
-
-            inputs_table = Table(inputs_data, colWidths=[2.5*inch, 3.5*inch])
+            inputs_table = Table(inputs_data, colWidths=[1.8*inch, 2*inch, 1.8*inch, 2*inch])
             inputs_table.setStyle(TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ]))
-            elements.append(inputs_table)
-            elements.append(Spacer(1, 0.2*inch))
-
-            # --- Summary ---
-            summary_text = f"""
-            EOQ for this scenario is <b>{res['EOQ']:.0f} units</b>, 
-            with a total logistics cost of <b>{res['TLC']:.0f} USD/yr</b>. 
-            Recommended reorder point (ROP) is <b>{res['ROP']:.0f}</b>.
-            """
-            elements.append(Paragraph(summary_text, styles['Normal']))
-            elements.append(Spacer(1, 0.2*inch))
-
-            # --- Metrics as Tiles ---
-            data = [
-                ["EOQ", f"{res['EOQ']:.2f}", "TLC", f"{res['TLC']:.2f}"],
-                ["Ordering Cost", f"{res['OrderingCost']:.2f}", "Holding Cost", f"{res['HoldingCost']:.2f}"],
-                ["ROP", f"{res['ROP']:.2f}", "Cycle Time", f"{res['t_months']:.2f} mo (~{res['t_days']:.0f} d)"]
-            ]
-            table = Table(data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2*inch])
-            table.setStyle(TableStyle([
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -296,7 +266,26 @@ if run:
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ]))
-            elements.append(table)
+            elements.append(inputs_table)
+            elements.append(Spacer(1, 0.2*inch))
+
+            # --- Results as Tiles ---
+            elements.append(Paragraph("<b>Results</b>", styles['Heading2']))
+            results_data = [
+                ["EOQ", f"{res['EOQ']:.2f}", "TLC", f"{res['TLC']:.2f}"],
+                ["Ordering Cost", f"{res['OrderingCost']:.2f}", "Holding Cost", f"{res['HoldingCost']:.2f}"],
+                ["ROP", f"{res['ROP']:.2f}", "Cycle Time", f"{res['t_months']:.2f} mo (~{res['t_days']:.0f} d)"]
+            ]
+            results_table = Table(results_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2*inch])
+            results_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ]))
+            elements.append(results_table)
             elements.append(Spacer(1, 0.2*inch))
 
             # --- Graphs in 2x2 Grid ---
@@ -309,19 +298,14 @@ if run:
                     img_buf.seek(0)
                     row.append(Image(img_buf, width=3.5*inch, height=2.5*inch))
                     count += 1
-                    if count % 2 == 0:   # 2 per row
+                    if count % 2 == 0:
                         t = Table([row], colWidths=[3.5*inch, 3.5*inch])
                         elements.append(t)
                         elements.append(Spacer(1, 0.1*inch))
                         row = []
-            if row:  # if odd number of figs
+            if row:
                 t = Table([row], colWidths=[3.5*inch]*len(row))
                 elements.append(t)
-
-            # --- Footer ---
-            elements.append(Spacer(1, 0.2*inch))
-            footer = Paragraph("Prepared by Vinod Kasi | Swift Supply Chain Analytics", styles['Normal'])
-            elements.append(footer)
 
             doc.build(elements)
             pdf = buffer.getvalue()
