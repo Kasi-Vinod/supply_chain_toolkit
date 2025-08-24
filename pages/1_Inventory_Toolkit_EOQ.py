@@ -311,14 +311,14 @@ if run:
             if row:
                 elements.append(Table([row], colWidths=[3.2*inch]*len(row)))
 
-            # --- Recommendations ---
-            elements.append(Paragraph("<b>Recommendations</b>", styles['Heading2']))
-            rec = """
-            • Review supplier discount options<br/>
-            • Reduce lead time to lower ROP<br/>
-            • Monitor carrying cost rate
-            """
-            elements.append(Paragraph(rec, styles['Normal']))
+            # # --- Recommendations ---
+            # elements.append(Paragraph("<b>Recommendations</b>", styles['Heading2']))
+            # rec = """
+            # • Review supplier discount options<br/>
+            # • Reduce lead time to lower ROP<br/>
+            # • Monitor carrying cost rate
+            # """
+            # elements.append(Paragraph(rec, styles['Normal']))
 
             doc.build(elements, onFirstPage=header_footer, onLaterPages=header_footer)
             pdf = buffer.getvalue()
