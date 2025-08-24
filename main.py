@@ -32,12 +32,8 @@ Leverage analytics to **optimize inventory**, **segment customers**, and **prior
 👉 Start with one of the modules below, or try with demo data.  
         """
     )
-    st.button("🚀 Get Started with EOQ", type="primary")
-with hero_right:
-    try:
-        st.image("banner_supply_chain.png", use_container_width=True)
-    except Exception:
-        st.info("🔎 Add a banner image for better branding (e.g., supply chain illustration).")
+# Removed "Get Started with EOQ" button
+# Removed banner image placeholder/info box
 
 st.divider()
 
