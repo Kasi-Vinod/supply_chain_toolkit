@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+# For PDF export
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
 # DO NOT call st.set_page_config here (it's set in main.py)
 
 SAMPLES = {
@@ -148,22 +154,18 @@ if run:
             TotalCost = OrderingCost + HoldingCost + (D * C)
 
             fig1, ax1 = plt.subplots()
-
             ax1.plot(Q, OrderingCost, color="red", label="Ordering cost", linewidth=2)
             ax1.plot(Q, HoldingCost, color="green", label="Carrying cost", linewidth=2)
             ax1.plot(Q, TotalCost, color="blue", label="Total cost", linewidth=2)
-
             ax1.axvline(x=res["EOQ"], color="orange", linestyle="--", linewidth=2)
             ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C, 
                         color="orange", s=60, zorder=5)
             ax1.text(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C,
                      f"  EOQ = {int(res['EOQ'])}", color="orange", fontsize=10, va="bottom")
-
             ax1.set_xlabel("Reorder quantity (Q)")
             ax1.set_ylabel("Annual cost")
             ax1.set_title("EOQ Cost Curve")
             ax1.legend(frameon=False)
-
             st.pyplot(fig1)
 
         # Inventory vs Time (Sawtooth)
@@ -173,14 +175,12 @@ if run:
             inventory = []
             Q = res["EOQ"]
             ROP = res["ROP"]
-
             level = Q
             for m in months:
                 if level <= ROP:
                     level = Q
                 inventory.append(level)
                 level -= D / 12
-
             fig2 = plt.figure()
             plt.step(months, inventory, where="post", label="Inventory Level")
             plt.axhline(ROP, color="red", linestyle="--", label=f"ROP = {ROP:.0f}")
@@ -198,12 +198,10 @@ if run:
             st.subheader("TLC Breakdown (Annual Costs)")
             labels = ["Ordering Cost", "Holding Cost", "Total Logistics Cost"]
             values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
-
             fig3, ax3 = plt.subplots()
             bars = ax3.bar(labels, values, color=["skyblue", "orange", "green"])
             ax3.set_ylabel("USD / year")
             ax3.set_title("Cost Components Breakdown")
-
             for bar in bars:
                 yval = bar.get_height()
                 ax3.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval),
@@ -218,24 +216,22 @@ if run:
                 d = res["discount"]
                 labels = [f"Base EOQ ({res['EOQ']:.0f})", f"Discount Q ({d['discount_Q']:.0f})"]
                 values = [res["total_base"], d["total_disc"]]
-
                 fig4, ax4 = plt.subplots()
                 bars = ax4.bar(labels, values, color=["blue", "green"])
                 ax4.set_ylabel("USD / year")
                 ax4.set_title("Base vs Discount Scenario")
-
                 for bar in bars:
                     yval = bar.get_height()
                     ax4.text(bar.get_x() + bar.get_width()/2, yval + (0.01 * yval),
                              f"{yval:,.0f}", ha='center', va='bottom',
                              fontsize=10, fontweight='bold')
                 st.pyplot(fig4)
-
                 if d["accept"]:
                     st.success(f"✅ Accept discount: Savings = {d['annual_savings']:.2f} USD/yr")
                 else:
                     st.warning("❌ Base EOQ is cheaper — do not accept discount.")
             else:
+                fig4 = None
                 st.info("No discount scenario enabled.")
 
         # --- Downloads ---
@@ -259,6 +255,62 @@ if run:
         csv_io = io.StringIO()
         df.to_csv(csv_io, index=False)
         st.download_button("Download results (CSV)", data=csv_io.getvalue(), file_name="supply_chain_results.csv")
+
+        # ---------- PDF EXPORT ----------
+        def create_pdf(res, figs):
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4)
+            styles = getSampleStyleSheet()
+            elements = []
+
+            # --- Summary ---
+            summary_text = f"""
+            <b>EOQ Analysis Report</b><br/>
+            EOQ for this scenario is <b>{res['EOQ']:.0f} units</b>, 
+            with a total logistics cost of <b>{res['TLC']:.0f} USD/yr</b>. 
+            Recommended reorder point (ROP) is <b>{res['ROP']:.0f}</b>.
+            """
+            elements.append(Paragraph(summary_text, styles['Normal']))
+            elements.append(Spacer(1, 0.3*inch))
+
+            # --- Key Metrics ---
+            metrics_text = f"""
+            EOQ: {res['EOQ']:.2f}<br/>
+            Total Logistics Cost: {res['TLC']:.2f}<br/>
+            Ordering Cost: {res['OrderingCost']:.2f}<br/>
+            Holding Cost: {res['HoldingCost']:.2f}<br/>
+            Reorder Point: {res['ROP']:.2f}<br/>
+            Time between orders: {res['t_months']:.2f} months (~{res['t_days']:.0f} days)
+            """
+            elements.append(Paragraph(metrics_text, styles['Normal']))
+            elements.append(Spacer(1, 0.3*inch))
+
+            # --- Figures ---
+            for fig in figs:
+                if fig:
+                    img_buf = io.BytesIO()
+                    fig.savefig(img_buf, format='png', dpi=150, bbox_inches="tight")
+                    img_buf.seek(0)
+                    elements.append(Image(img_buf, width=6*inch, height=3.5*inch))
+                    elements.append(Spacer(1, 0.2*inch))
+
+            doc.build(elements)
+            pdf = buffer.getvalue()
+            buffer.close()
+            return pdf
+
+        figs = [fig1, fig2, fig3]
+        if fig4:
+            figs.append(fig4)
+
+        pdf_bytes = create_pdf(res, figs)
+
+        st.download_button(
+            label="📄 Download Full Report (PDF)",
+            data=pdf_bytes,
+            file_name="EOQ_Report.pdf",
+            mime="application/pdf"
+        )
 
     except Exception as e:
         st.error(f"Error during calculation: {e}")
