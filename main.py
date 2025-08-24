@@ -8,11 +8,23 @@ st.set_page_config(
     layout="wide"
 )
 
+# ---- CSS to Reduce Padding (fit all content in one screen) ----
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # ---- HEADER / BRANDING ----
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
     try:
-        st.image("vk_logo.png", width=90)
+        st.image("vk_logo.png", width=80)
     except Exception:
         pass
 with col_title:
@@ -32,24 +44,26 @@ Leverage analytics to **optimize inventory**, **segment customers**, and **prior
 👉 Start with one of the modules below, or try with demo data.  
         """
     )
-# Removed "Get Started with EOQ" button
-# Removed banner image placeholder/info box
 
 st.divider()
 
-# ---- IMPACT METRICS ----
-st.subheader("📌 Toolkit at a Glance")
-m1, m2, m3 = st.columns(3)
-with m1:
+# ---- IMPACT METRICS ROW ----
+col1, col2, col3 = st.columns([1, 1.2, 1])
+with col1:
+    st.subheader("📌 Toolkit at a Glance")
     st.metric("Modules Live", "2 / 5", delta="on track")
-with m2:
-    st.progress(0.4, text="Roadmap completion 40%")
-with m3:
-    st.metric("Data Supported", "CSV, Excel", delta="more coming soon")
+
+with col2:
+    st.subheader("🚀 Roadmap Progress")
+    st.progress(0.4, text="40% complete")
+
+with col3:
+    st.subheader("📂 Data Supported")
+    st.metric("Formats", "CSV, Excel", delta="more coming soon")
 
 st.divider()
 
-# ---- MODULE CARDS ----
+# ---- MODULE CARDS ROW ----
 st.subheader("🧰 Available Modules")
 t1, t2 = st.columns(2)
 
@@ -81,22 +95,28 @@ with t2:
 
 st.divider()
 
-# ---- ROADMAP SECTION ----
-st.subheader("🚀 Roadmap")
-st.markdown(
-    """
+# ---- ROADMAP DETAILS ----
+st.subheader("📍 Detailed Roadmap")
+roadmap_col1, roadmap_col2 = st.columns(2)
+with roadmap_col1:
+    st.markdown(
+        """
 - ✅ **EOQ Toolkit** (Inventory Optimization)  
 - ✅ **Segmentation Toolkit** (ABC, MCABC, Kraljic, Profitability)  
 - 🔄 **Demand Forecasting** (in development)  
+        """
+    )
+with roadmap_col2:
+    st.markdown(
+        """
 - ⏳ **S&OP Planning** (next release)  
 - ⏳ **Network Optimization** (future roadmap)  
-    """
-)
+        """
+    )
 
 st.divider()
 
 # ---- FOOTER ----
-st.markdown("---")
 col_f1, col_f2 = st.columns([3, 1])
 with col_f1:
     st.caption("© 2025 Supply Chain Decision Support Platform • Developed by Vinod Kasi • v1.0")
