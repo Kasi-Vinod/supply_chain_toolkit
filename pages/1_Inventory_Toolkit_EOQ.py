@@ -283,11 +283,13 @@ if run:
                     row.append(Image(img_buf, width=3.5*inch, height=2.5*inch))
                     count += 1
                     if count % 2 == 0:   # 2 per row
-                        elements.append(row)
+                        t = Table([row], colWidths=[3.5*inch, 3.5*inch])
+                        elements.append(t)
                         elements.append(Spacer(1, 0.1*inch))
                         row = []
-            if row:
-                elements.append(row)
+            if row:  # if odd number of figs, put last one in a single-cell table
+                t = Table([row], colWidths=[3.5*inch]*len(row))
+                elements.append(t)
 
             doc.build(elements)
             pdf = buffer.getvalue()
