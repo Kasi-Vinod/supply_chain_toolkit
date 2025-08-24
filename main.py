@@ -10,16 +10,32 @@ st.set_page_config(
 # ---------- Global styles (compact + modern) ----------
 st.markdown("""
 <style>
-  .block-container{padding-top:1rem;padding-bottom:1rem;padding-left:2rem;padding-right:2rem}
-  h1{font-weight:800;letter-spacing:.2px;margin-bottom:.25rem}
-  .subtitle{color:#6b7280;margin-top:.25rem}
-  .section-hr{border:0;border-top:1px solid rgba(0,0,0,.08);margin:1rem 0}
-  .hero{
-    padding:22px 28px;border-radius:16px;color:white;
-    background:linear-gradient(90deg,#6a11cb 0%,#2575fc 100%);
-    box-shadow:0 6px 18px rgba(63,94,251,.18)
+  .block-container {
+    padding-top: 2rem !important; /* extra top space to avoid cut-off */
+    padding-bottom: 1rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
   }
-  .road{padding:10px 12px;border-radius:10px;margin:.25rem 0;font-weight:500}
+  h1, h2, h3 {
+    margin-top: 0.5rem !important;
+  }
+  .subtitle {
+    color:#6b7280;
+    margin-top:.25rem
+  }
+  .section-hr {
+    border:0;
+    border-top:1px solid rgba(0,0,0,.08);
+    margin:1rem 0
+  }
+  .hero {
+    padding:22px 28px;
+    border-radius:16px;
+    color:#1a1a1a;
+    background: #d4f5d0; /* light green background */
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+  }
+  .road {padding:10px 12px;border-radius:10px;margin:.25rem 0;font-weight:500}
   .road.done{background:#e8f7ee;color:#1a7f37}
   .road.progress{background:#fff3e0;color:#9a5b00}
   .road.future{background:#f2f3f5;color:#545b6b}
@@ -52,7 +68,7 @@ st.markdown("""
 
 st.markdown('<hr class="section-hr">', unsafe_allow_html=True)
 
-# ---------- Metrics row (true cards via st.container) ----------
+# ---------- Metrics row ----------
 c1, c2, c3 = st.columns([1,1,1])
 with c1:
     with st.container(border=True):
