@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---- Header / branding ----
+# ---- HEADER / BRANDING ----
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
     try:
@@ -16,42 +16,53 @@ with col_logo:
     except Exception:
         pass
 with col_title:
-    st.title("Supply Chain Analytics Toolkit")
-    st.caption("Smarter decisions with EOQ • Segmentation • (more coming soon)")
-
-# ---- Optional banner ----
-try:
-    st.image("banner_supply_chain.png", use_container_width=True)
-except Exception:
-    st.markdown("")
-
-# ---- Hero section ----
-st.markdown(
-    """
-Welcome to your one-stop toolkit for smarter supply chain decisions.  
-Use the **cards below** to explore modules like **Inventory (EOQ)** and **Segmentation**.
-    """
-)
-
-# ---- KPI Section (card style) ----
-k1, k2, k3 = st.columns(3)
-with k1:
-    st.container(border=True).metric("Ready-made analyses", "2", delta="modular")
-with k2:
-    st.container(border=True).metric("Files supported", "CSV, Excel")
-with k3:
-    st.container(border=True).metric("Visuals", "Pareto • Sawtooth • Kraljic")
+    st.title("Supply Chain Decision Support Platform")
+    st.caption("Analytics-driven insights to optimize inventory, customers, and suppliers.")
 
 st.divider()
 
-# ---- Tiles ----
+# ---- HERO SECTION ----
+hero_left, hero_right = st.columns([2, 1])
+with hero_left:
+    st.markdown(
+        """
+### Smarter Supply Chain Decisions 📊  
+Leverage analytics to **optimize inventory**, **segment customers**, and **prioritize suppliers**.  
+
+👉 Start with one of the modules below, or try with demo data.  
+        """
+    )
+    st.button("🚀 Get Started with EOQ", type="primary")
+with hero_right:
+    try:
+        st.image("banner_supply_chain.png", use_container_width=True)
+    except Exception:
+        st.info("🔎 Add a banner image for better branding (e.g., supply chain illustration).")
+
+st.divider()
+
+# ---- IMPACT METRICS ----
+st.subheader("📌 Toolkit at a Glance")
+m1, m2, m3 = st.columns(3)
+with m1:
+    st.metric("Modules Live", "2 / 5", delta="on track")
+with m2:
+    st.progress(0.4, text="Roadmap completion 40%")
+with m3:
+    st.metric("Data Supported", "CSV, Excel", delta="more coming soon")
+
+st.divider()
+
+# ---- MODULE CARDS ----
+st.subheader("🧰 Available Modules")
 t1, t2 = st.columns(2)
 
 with t1:
     with st.container(border=True):
         st.subheader("📦 Inventory Toolkit (EOQ)")
         st.write(
-            "Calculate EOQ, total logistics cost, reorder point, cycle time, and discount checks."
+            "Optimize stock levels with EOQ models: **calculate order sizes, cycle times, "
+            "logistics costs, and evaluate supplier discounts.**"
         )
         st.page_link(
             "pages/1_Inventory_Toolkit_EOQ.py",
@@ -63,7 +74,8 @@ with t2:
     with st.container(border=True):
         st.subheader("🧩 Segmentation Toolkit")
         st.write(
-            "Segment **Products (ABC & MCABC)**, **Customers (profitability)**, and **Suppliers (Kraljic)**."
+            "Prioritize **products, customers, and suppliers** with data-driven frameworks: "
+            "**ABC, MCABC, Kraljic, and profitability analysis.**"
         )
         st.page_link(
             "pages/2_Segmentation_Toolkit.py",
@@ -73,15 +85,26 @@ with t2:
 
 st.divider()
 
-# ---- Roadmap / What's Next ----
-st.info("🚀 Coming soon: Demand Forecasting • S&OP Planning • Network Optimization")
+# ---- ROADMAP SECTION ----
+st.subheader("🚀 Roadmap")
+st.markdown(
+    """
+- ✅ **EOQ Toolkit** (Inventory Optimization)  
+- ✅ **Segmentation Toolkit** (ABC, MCABC, Kraljic, Profitability)  
+- 🔄 **Demand Forecasting** (in development)  
+- ⏳ **S&OP Planning** (next release)  
+- ⏳ **Network Optimization** (future roadmap)  
+    """
+)
 
-# ---- Footer ----
+st.divider()
+
+# ---- FOOTER ----
 st.markdown("---")
 col_f1, col_f2 = st.columns([3, 1])
 with col_f1:
-    st.caption("© 2025 Supply Chain Analytics Toolkit • Developed by Vinod Kasi")
+    st.caption("© 2025 Supply Chain Decision Support Platform • Developed by Vinod Kasi • v1.0")
 with col_f2:
     st.markdown(
-        "[![LinkedIn](https://img.shields.io/badge/LinkedIn-Profile-blue?logo=linkedin)](https://www.linkedin.com/in/vinodkasi/)"
+        "[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/vinodkasi/)"
     )
