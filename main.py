@@ -7,34 +7,27 @@ st.set_page_config(
     layout="wide",
 )
 
-# ---------- Global styles ----------
+# ---------- Global styles (compact + modern) ----------
 st.markdown("""
 <style>
   .block-container{padding-top:1rem;padding-bottom:1rem;padding-left:2rem;padding-right:2rem}
   h1{font-weight:800;letter-spacing:.2px;margin-bottom:.25rem}
   .subtitle{color:#6b7280;margin-top:.25rem}
   .section-hr{border:0;border-top:1px solid rgba(0,0,0,.08);margin:1rem 0}
-
-  /* Hero Box */
   .hero{
-    padding:28px 32px;
-    border-radius:16px;
-    color:#1f2937; /* dark gray text */
-    background:linear-gradient(90deg,#bbf7d0 0%,#86efac 100%);
-    box-shadow:0 6px 18px rgba(0,0,0,.08)
+    padding:22px 28px;border-radius:16px;color:white;
+    background:linear-gradient(90deg,#6a11cb 0%,#2575fc 100%);
+    box-shadow:0 6px 18px rgba(63,94,251,.18)
   }
-
-  /* Equal height cards */
-  .metric-card{
-    min-height:170px;  /* same for all cards */
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-  }
+  .road{padding:10px 12px;border-radius:10px;margin:.25rem 0;font-weight:500}
+  .road.done{background:#e8f7ee;color:#1a7f37}
+  .road.progress{background:#fff3e0;color:#9a5b00}
+  .road.future{background:#f2f3f5;color:#545b6b}
+  .soft{opacity:.7}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Header ----------
+# ---------- Header / Branding ----------
 col_logo, col_title = st.columns([1, 7])
 with col_logo:
     try:
@@ -42,7 +35,7 @@ with col_logo:
     except Exception:
         st.write("VK")
 with col_title:
-    st.markdown("# 🚀 Supply Chain Decision Support Platform")
+    st.markdown("## 🚀 Supply Chain Decision Support Platform")
     st.markdown('<div class="subtitle">Analytics-driven insights to optimize inventory, customers, and suppliers.</div>',
                 unsafe_allow_html=True)
 
@@ -51,7 +44,7 @@ st.markdown('<hr class="section-hr">', unsafe_allow_html=True)
 # ---------- Hero ----------
 st.markdown("""
 <div class="hero">
-  <h3 style="margin:0 0 10px 0;">Smarter Supply Chain Decisions 📊</h3>
+  <h3 style="margin:0 0 6px 0;">Smarter Supply Chain Decisions 📊</h3>
   Leverage analytics to <b>optimize inventory</b>, <b>segment customers</b>, and <b>prioritize suppliers</b>. <br>
   👉 Start with one of the modules below, or try with demo data.
 </div>
@@ -59,28 +52,22 @@ st.markdown("""
 
 st.markdown('<hr class="section-hr">', unsafe_allow_html=True)
 
-# ---------- Metrics row ----------
-c1, c2, c3 = st.columns(3)
+# ---------- Metrics row (true cards via st.container) ----------
+c1, c2, c3 = st.columns([1,1,1])
 with c1:
     with st.container(border=True):
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.subheader("📌 Toolkit")
         st.metric("Modules Live", "2 / 5", delta="on track")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 with c2:
     with st.container(border=True):
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.subheader("🚀 Roadmap Progress")
         st.progress(0.4, text="40% complete")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 with c3:
     with st.container(border=True):
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.subheader("📂 Data Supported")
         st.metric("Formats", "CSV, Excel", delta="more coming soon")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<hr class="section-hr">', unsafe_allow_html=True)
 
