@@ -83,5 +83,5 @@ with col_f1:
     st.caption("© 2025 Supply Chain Analytics Toolkit • Developed by Vinod Kasi")
 with col_f2:
     st.markdown(
-        "[![GitHub](https://img.shields.io/badge/GitHub-Repo-black?logo=github)](https://github.com/yourrepo)"
+        "[![LinkedIn](https://img.shields.io/badge/LinkedIn-Profile-blue?logo=linkedin)](https://www.linkedin.com/in/vinodkasi/)"
     )
