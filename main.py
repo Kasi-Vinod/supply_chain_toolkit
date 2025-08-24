@@ -3,34 +3,52 @@ import streamlit as st
 
 # ---------------- Page Config ----------------
 st.set_page_config(
-    page_title="SCM Segmentation Toolkit",
-    page_icon="📊",
+    page_title="Supply Chain Toolkit",
+    page_icon="📦",
     layout="wide"
 )
 
-# ---------------- Custom CSS ----------------
+# ---------------- Header ----------------
+col_logo, col_title = st.columns([1, 6])
+with col_logo:
+    try:
+        st.image("vk_logo.png", width=90)
+    except Exception:
+        pass
+with col_title:
+    st.title("Supply Chain Decision Support Platform")
+    st.caption("Analytics-driven insights to optimize inventory, customers, and suppliers.")
+
+st.divider()
+
+# ---------------- Hero Section ----------------
+hero_left, hero_right = st.columns([2, 1])
+with hero_left:
+    st.markdown(
+        """
+### Smarter Supply Chain Decisions 📊  
+Leverage analytics to **optimize inventory**, **segment customers**, and **prioritize suppliers**.  
+
+👉 Start with one of the modules below, or try with demo data.  
+        """
+    )
+
+st.divider()
+
+# ---------------- Impact Metrics ----------------
+st.subheader("📌 Toolkit at a Glance")
+
+# Custom CSS for equal cards
 st.markdown("""
     <style>
-    /* Background & font */
-    body {
-        background-color: #f8f9fa;
-        font-family: 'Segoe UI', sans-serif;
-    }
-
-    /* Card styling */
-    .card {
+    .metric-card {
         border: 1px solid #ddd;
         border-radius: 12px;
         padding: 15px;
+        background: #fff;
         text-align: center;
-        background-color: #fff;
-        height: 160px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
-    }
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        height: 140px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
     .progress-container {
         background:#eee;
@@ -47,18 +65,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+m1, m2, m3 = st.columns(3)
 
-# ---------------- Header ----------------
-st.title("📊 SCM Segmentation Toolkit")
-st.markdown("Your one-stop solution for **supply chain segmentation, analysis, and reporting**.")
-
-
-# ---------------- Dashboard Cards ----------------
-col1, col2, col3 = st.columns(3)
-
-with col1:
+with m1:
     st.markdown("""
-    <div class="card">
+    <div class="metric-card">
         <h4>📌 Toolkit</h4>
         <p>Modules Live</p>
         <h2>2 / 5</h2>
@@ -66,9 +77,9 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-with col2:
+with m2:
     st.markdown("""
-    <div class="card">
+    <div class="metric-card">
         <h4>🚀 Roadmap Progress</h4>
         <p>40% complete</p>
         <div class="progress-container">
@@ -77,9 +88,9 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-with col3:
+with m3:
     st.markdown("""
-    <div class="card">
+    <div class="metric-card">
         <h4>📂 Data Supported</h4>
         <p>Formats</p>
         <h3>CSV, Excel</h3>
@@ -87,21 +98,60 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 
+st.divider()
 
-# ---------------- Main Content ----------------
-st.subheader("📑 About the Toolkit")
-st.write("""
-This toolkit helps you segment and analyze supply chain data with ease.  
-Upload your datasets, explore segmentation strategies, and generate automated reports.
-""")
+# ---------------- Module Cards ----------------
+st.subheader("🧰 Available Modules")
+t1, t2 = st.columns(2)
 
-# Example file uploader
-uploaded_file = st.file_uploader("📥 Upload your dataset (CSV/Excel)", type=["csv", "xlsx"])
+with t1:
+    with st.container(border=True):
+        st.subheader("📦 Inventory Toolkit (EOQ)")
+        st.write(
+            "Optimize stock levels with EOQ models: **calculate order sizes, cycle times, "
+            "logistics costs, and evaluate supplier discounts.**"
+        )
+        st.page_link(
+            "pages/1_Inventory_Toolkit_EOQ.py",
+            label="Open EOQ Toolkit →",
+            icon="📦"
+        )
 
-if uploaded_file:
-    st.success("✅ File uploaded successfully!")
-    # You can add pandas code here to process the file
+with t2:
+    with st.container(border=True):
+        st.subheader("🧩 Segmentation Toolkit")
+        st.write(
+            "Prioritize **products, customers, and suppliers** with data-driven frameworks: "
+            "**ABC, MCABC, Kraljic, and profitability analysis.**"
+        )
+        st.page_link(
+            "pages/2_Segmentation_Toolkit.py",
+            label="Open Segmentation →",
+            icon="🧭"
+        )
 
+st.divider()
+
+# ---------------- Roadmap ----------------
+st.subheader("🚀 Roadmap")
+st.markdown(
+    """
+- ✅ **EOQ Toolkit** (Inventory Optimization)  
+- ✅ **Segmentation Toolkit** (ABC, MCABC, Kraljic, Profitability)  
+- 🔄 **Demand Forecasting** (in development)  
+- ⏳ **S&OP Planning** (next release)  
+- ⏳ **Network Optimization** (future roadmap)  
+    """
+)
+
+st.divider()
 
 # ---------------- Footer ----------------
-st.markdown("<br><hr><center>Built with ❤️ using Streamlit</center>", unsafe_allow_html=True)
+st.markdown("---")
+col_f1, col_f2 = st.columns([3, 1])
+with col_f1:
+    st.caption("© 2025 Supply Chain Decision Support Platform • Developed by Vinod Kasi • v1.0")
+with col_f2:
+    st.markdown(
+        "[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/vinodkasi/)"
+    )
