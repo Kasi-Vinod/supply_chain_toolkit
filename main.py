@@ -7,33 +7,34 @@ st.set_page_config(
     layout="wide",
 )
 
-# ---------- Global styles (compact + modern) ----------
+# ---------- Global styles ----------
 st.markdown("""
 <style>
   .block-container{padding-top:1rem;padding-bottom:1rem;padding-left:2rem;padding-right:2rem}
   h1{font-weight:800;letter-spacing:.2px;margin-bottom:.25rem}
   .subtitle{color:#6b7280;margin-top:.25rem}
   .section-hr{border:0;border-top:1px solid rgba(0,0,0,.08);margin:1rem 0}
+
+  /* Hero Box */
   .hero{
-    padding:22px 28px;border-radius:16px;color:#064e3b;
+    padding:28px 32px;
+    border-radius:16px;
+    color:#1f2937; /* dark gray text */
     background:linear-gradient(90deg,#bbf7d0 0%,#86efac 100%);
-    box-shadow:0 6px 18px rgba(0,0,0,.1)
+    box-shadow:0 6px 18px rgba(0,0,0,.08)
   }
+
+  /* Equal height cards */
   .metric-card{
-    min-height:150px;
+    min-height:170px;  /* same for all cards */
     display:flex;
     flex-direction:column;
     justify-content:center;
   }
-  .road{padding:10px 12px;border-radius:10px;margin:.25rem 0;font-weight:500}
-  .road.done{background:#e8f7ee;color:#1a7f37}
-  .road.progress{background:#fff3e0;color:#9a5b00}
-  .road.future{background:#f2f3f5;color:#545b6b}
-  .soft{opacity:.7}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Header / Branding ----------
+# ---------- Header ----------
 col_logo, col_title = st.columns([1, 7])
 with col_logo:
     try:
@@ -50,7 +51,7 @@ st.markdown('<hr class="section-hr">', unsafe_allow_html=True)
 # ---------- Hero ----------
 st.markdown("""
 <div class="hero">
-  <h3 style="margin:0 0 6px 0;">Smarter Supply Chain Decisions 📊</h3>
+  <h3 style="margin:0 0 10px 0;">Smarter Supply Chain Decisions 📊</h3>
   Leverage analytics to <b>optimize inventory</b>, <b>segment customers</b>, and <b>prioritize suppliers</b>. <br>
   👉 Start with one of the modules below, or try with demo data.
 </div>
