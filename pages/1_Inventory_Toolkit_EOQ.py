@@ -8,9 +8,7 @@ import numpy as np
 
 # For PDF export
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, HRFlowable
-)
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib import colors
@@ -131,7 +129,6 @@ if run:
             discount_rate=float(discount_rate) if discount_enabled else 0.0
         )
 
-        # ---- Display KPIs ----
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("EOQ (units)", f"{res['EOQ']:.2f}")
@@ -151,6 +148,8 @@ if run:
 
         # EOQ Cost Curve
         with col_top_left:
+            st.subheader("EOQ Cost Curve")
+
             Q = np.linspace(1, res["EOQ"]*3, 500)
             OrderingCost = (D / Q) * S
             HoldingCost = (Q / 2) * res["h"]
@@ -161,7 +160,7 @@ if run:
             ax1.plot(Q, HoldingCost, color="green", label="Carrying cost", linewidth=2)
             ax1.plot(Q, TotalCost, color="blue", label="Total cost", linewidth=2)
             ax1.axvline(x=res["EOQ"], color="orange", linestyle="--", linewidth=2)
-            ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C,
+            ax1.scatter(res["EOQ"], (D / res["EOQ"]) * S + (res["EOQ"]/2) * res["h"] + D*C, 
                         color="orange", s=60, zorder=5)
             ax1.set_xlabel("Reorder quantity (Q)")
             ax1.set_ylabel("Annual cost")
@@ -169,8 +168,9 @@ if run:
             ax1.legend(frameon=False)
             st.pyplot(fig1)
 
-        # Inventory vs Time
+        # Inventory vs Time (Sawtooth)
         with col_top_right:
+            st.subheader("Inventory over Time (ROP & Cycle)")
             months = list(range(13))
             inventory = []
             Q = res["EOQ"]
@@ -195,6 +195,7 @@ if run:
 
         # TLC Breakdown
         with col_bottom_left:
+            st.subheader("TLC Breakdown (Annual Costs)")
             labels = ["Ordering Cost", "Holding Cost", "Total Logistics Cost"]
             values = [res["OrderingCost"], res["HoldingCost"], res["TLC"]]
             fig3, ax3 = plt.subplots()
@@ -210,6 +211,7 @@ if run:
 
         # Discount Analysis
         with col_bottom_right:
+            st.subheader("Discount Analysis")
             if res["discount"]:
                 d = res["discount"]
                 labels = [f"Base EOQ ({res['EOQ']:.0f})", f"Discount Q ({d['discount_Q']:.0f})"]
@@ -232,7 +234,7 @@ if run:
                 fig4 = None
                 st.info("No discount scenario enabled.")
 
-        # --- PDF Export (professional layout) ---
+        # --- PDF Export (Inputs + single page layout) ---
         st.markdown("---")
 
         def create_pdf(res, figs):
@@ -242,26 +244,44 @@ if run:
             elements = []
 
             # --- Header ---
-            try:
-                header_logo = Image("vk_logo.png", width=0.8*inch, height=0.8*inch)
-                elements.append(header_logo)
-            except:
-                pass
-            header_text = f"<b>EOQ Analysis Report</b> | {datetime.today().strftime('%d %b %Y')}"
-            elements.append(Paragraph(header_text, styles['Title']))
-            elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
+            header = f"<b>EOQ Analysis Report</b> | {datetime.today().strftime('%d %b %Y')}"
+            elements.append(Paragraph(header, styles['Title']))
+            elements.append(Spacer(1, 0.2*inch))
+
+            # --- Inputs Section ---
+            elements.append(Paragraph("<b>Inputs Used</b>", styles['Heading2']))
+            inputs_data = [
+                ["Annual Demand (D)", f"{D:.0f} units"],
+                ["Unit Price (C)", f"{C:.2f} USD/unit"],
+                ["Ordering Cost (S)", f"{S:.2f} USD/order"],
+                ["Holding Cost Rate (h)", f"{h_rate:.2%}"],
+                ["Lead Time", f"{lead_time_months:.1f} months"],
+            ]
+            if discount_enabled:
+                inputs_data.append(["Discount Threshold Q", f"{discount_Q:.0f} units"])
+                inputs_data.append(["Discount Rate", f"{discount_rate:.0%}"])
+
+            inputs_table = Table(inputs_data, colWidths=[2.5*inch, 3.5*inch])
+            inputs_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ]))
+            elements.append(inputs_table)
             elements.append(Spacer(1, 0.2*inch))
 
             # --- Summary ---
             summary_text = f"""
-            EOQ is <b>{res['EOQ']:.0f} units</b>, 
-            with a TLC of <b>{res['TLC']:.0f} USD/yr</b>. 
-            Recommended ROP = <b>{res['ROP']:.0f}</b>.
+            EOQ for this scenario is <b>{res['EOQ']:.0f} units</b>, 
+            with a total logistics cost of <b>{res['TLC']:.0f} USD/yr</b>. 
+            Recommended reorder point (ROP) is <b>{res['ROP']:.0f}</b>.
             """
-            elements.append(Paragraph(summary_text, styles['Italic']))
+            elements.append(Paragraph(summary_text, styles['Normal']))
             elements.append(Spacer(1, 0.2*inch))
 
-            # --- Metrics Tiles ---
+            # --- Metrics as Tiles ---
             data = [
                 ["EOQ", f"{res['EOQ']:.2f}", "TLC", f"{res['TLC']:.2f}"],
                 ["Ordering Cost", f"{res['OrderingCost']:.2f}", "Holding Cost", f"{res['HoldingCost']:.2f}"],
@@ -270,22 +290,18 @@ if run:
             table = Table(data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2*inch])
             table.setStyle(TableStyle([
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('BACKGROUND', (0, 0), (1, 0), colors.lightblue),
-                ('BACKGROUND', (2, 0), (3, 0), colors.lightgreen),
-                ('BACKGROUND', (0, 1), (3, 1), colors.whitesmoke),
-                ('BACKGROUND', (0, 2), (3, 2), colors.beige),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ]))
             elements.append(table)
             elements.append(Spacer(1, 0.2*inch))
 
-            # --- Graphs ---
-            elements.append(Paragraph("<b>📊 Key Visualizations</b>", styles['Heading2']))
-            elements.append(Spacer(1, 0.1*inch))
-
-            row, count = [], 0
+            # --- Graphs in 2x2 Grid ---
+            row = []
+            count = 0
             for fig in figs:
                 if fig:
                     img_buf = io.BytesIO()
@@ -293,15 +309,17 @@ if run:
                     img_buf.seek(0)
                     row.append(Image(img_buf, width=3.5*inch, height=2.5*inch))
                     count += 1
-                    if count % 2 == 0:
-                        elements.append(Table([row], colWidths=[3.5*inch, 3.5*inch]))
+                    if count % 2 == 0:   # 2 per row
+                        t = Table([row], colWidths=[3.5*inch, 3.5*inch])
+                        elements.append(t)
                         elements.append(Spacer(1, 0.1*inch))
                         row = []
-            if row:
-                elements.append(Table([row], colWidths=[3.5*inch]*len(row)))
+            if row:  # if odd number of figs
+                t = Table([row], colWidths=[3.5*inch]*len(row))
+                elements.append(t)
 
             # --- Footer ---
-            elements.append(Spacer(1, 0.3*inch))
+            elements.append(Spacer(1, 0.2*inch))
             footer = Paragraph("Prepared by Vinod Kasi | Swift Supply Chain Analytics", styles['Normal'])
             elements.append(footer)
 
@@ -317,7 +335,7 @@ if run:
         pdf_bytes = create_pdf(res, figs)
 
         st.download_button(
-            label="📄 Download Professional Report (PDF)",
+            label="📄 Download Full Report (PDF)",
             data=pdf_bytes,
             file_name="EOQ_Report.pdf",
             mime="application/pdf"
