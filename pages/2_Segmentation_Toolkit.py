@@ -126,74 +126,108 @@ def export_pdf(title, df, figs):
 
 # ----------------- UI -----------------
 st.title("Segmentation Toolkit")
-tab_prod, tab_cust, tab_sup = st.tabs(["📦 Product", "👥 Customer", "🤝 Supplier"])
 
-# ----------------- Product -----------------
-with tab_prod:
-    f = st.file_uploader("Upload Product Data", type=["csv","xlsx"], key="prod")
-    a_pct = st.slider("A %", 50, 80, 70)
-    b_pct = st.slider("B %", 10, 30, 20)
-    w_val = st.number_input("Weight Value",0.0,1.0,0.5,step=0.05)
-    w_lead = st.number_input("Weight Lead",0.0,1.0,0.3,step=0.05)
-    w_crit = st.number_input("Weight Criticality",0.0,1.0,0.2,step=0.05)
+# Centralized file upload
+file = st.file_uploader("Upload Excel File (with sheets: Product, Customer, Supplier)", type=["xlsx"])
 
-    if st.button("Run Product Segmentation"):
-        df = pd.read_excel(f) if f.name.endswith("xlsx") else pd.read_csv(f)
-        abc_df = abc_analysis(df,a_pct,b_pct)
-        mc_df = mcabc_analysis(df,a_pct,b_pct,w_val,w_lead,w_crit)
+if file:
+    xls = pd.ExcelFile(file)
 
-        st.dataframe(abc_df)
-        st.dataframe(mc_df)
+    # --- Tile navigation ---
+    if "selected_tile" not in st.session_state:
+        st.session_state.selected_tile = "Product"
 
-        # Charts
-        figs=[]
-        fig1, ax1 = plt.subplots()
-        ax1.bar(abc_df["Item"], abc_df["AnnualValue"])
-        ax2=ax1.twinx(); ax2.plot(abc_df["Item"], abc_df["Cumulative%"], "r-")
-        st.pyplot(fig1); figs.append(fig1)
+    cols = st.columns(3)
 
-        fig2, ax = plt.subplots(); ax.bar(abc_df["ABC_Class"].value_counts().index, abc_df["ABC_Class"].value_counts().values)
-        st.pyplot(fig2); figs.append(fig2)
+    def render_tile(label, key, icon):
+        selected = (st.session_state.selected_tile == key)
+        color = "#4CAF50" if selected else "#f0f0f0"
+        text_color = "white" if selected else "black"
+        with cols[["Product","Customer","Supplier"].index(key)]:
+            if st.button(f"{icon} {label}", key=f"tile_{key}", use_container_width=True):
+                st.session_state.selected_tile = key
+            st.markdown(
+                f"""
+                <div style='text-align:center;
+                            background-color:{color};
+                            color:{text_color};
+                            padding:10px;
+                            border-radius:10px;
+                            margin-top:-15px;
+                            font-weight:bold;'>
+                    {label}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-        pdf_buf=export_pdf("Product Segmentation",abc_df,figs)
-        st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="product_segmentation.pdf")
+    render_tile("Product", "Product", "📦")
+    render_tile("Customer", "Customer", "👥")
+    render_tile("Supplier", "Supplier", "🤝")
 
-# ----------------- Customer -----------------
-with tab_cust:
-    f = st.file_uploader("Upload Customer Data", type=["csv","xlsx"], key="cust")
-    a_pct = st.slider("A % (Revenue)", 50, 80, 70)
-    b_pct = st.slider("B % (Revenue)", 10, 30, 20)
+    st.markdown("---")
 
-    if st.button("Run Customer Segmentation"):
-        df = pd.read_excel(f) if f.name.endswith("xlsx") else pd.read_csv(f)
-        seg=customer_segmentation(df,a_pct,b_pct)
-        st.dataframe(seg)
+    # --- Segmentation logic ---
+    if st.session_state.selected_tile == "Product":
+        a_pct = st.slider("A %", 50, 80, 70, key="prod_a")
+        b_pct = st.slider("B %", 10, 30, 20, key="prod_b")
+        w_val = st.number_input("Weight Value",0.0,1.0,0.5,step=0.05,key="prod_val")
+        w_lead = st.number_input("Weight Lead",0.0,1.0,0.3,step=0.05,key="prod_lead")
+        w_crit = st.number_input("Weight Criticality",0.0,1.0,0.2,step=0.05,key="prod_crit")
 
-        figs=[]
-        fig,ax=plt.subplots()
-        for n,g in seg.groupby("FinalClass"):
-            ax.scatter(g["Revenue"], g["ProfitMargin"]*100, label=n)
-        ax.legend(); st.pyplot(fig); figs.append(fig)
+        if st.button("Run Product Segmentation"):
+            df = pd.read_excel(xls, sheet_name="Product")
+            abc_df = abc_analysis(df,a_pct,b_pct)
+            mc_df = mcabc_analysis(df,a_pct,b_pct,w_val,w_lead,w_crit)
 
-        pdf_buf=export_pdf("Customer Segmentation",seg,figs)
-        st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="customer_segmentation.pdf")
+            st.dataframe(abc_df)
+            st.dataframe(mc_df)
 
-# ----------------- Supplier -----------------
-with tab_sup:
-    f = st.file_uploader("Upload Supplier Data", type=["csv","xlsx"], key="sup")
-    thr = st.slider("Threshold",1,10,5)
+            figs=[]
+            fig1, ax1 = plt.subplots()
+            ax1.bar(abc_df["Item"], abc_df["AnnualValue"])
+            ax2=ax1.twinx(); ax2.plot(abc_df["Item"], abc_df["Cumulative%"], "r-")
+            st.pyplot(fig1); figs.append(fig1)
 
-    if st.button("Run Supplier Segmentation"):
-        df = pd.read_excel(f) if f.name.endswith("xlsx") else pd.read_csv(f)
-        seg=kraljic_segmentation(df,thr)
-        st.dataframe(seg)
+            fig2, ax = plt.subplots()
+            ax.bar(abc_df["ABC_Class"].value_counts().index, abc_df["ABC_Class"].value_counts().values)
+            st.pyplot(fig2); figs.append(fig2)
 
-        figs=[]
-        fig,ax=plt.subplots()
-        for n,g in seg.groupby("Segment"):
-            ax.scatter(g["ProfitImpact"], g["SupplyRisk"], label=n)
-        ax.axvline(thr); ax.axhline(thr); ax.legend()
-        st.pyplot(fig); figs.append(fig)
+            pdf_buf=export_pdf("Product Segmentation",abc_df,figs)
+            st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="product_segmentation.pdf")
 
-        pdf_buf=export_pdf("Supplier Segmentation",seg,figs)
-        st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="supplier_segmentation.pdf")
+    elif st.session_state.selected_tile == "Customer":
+        a_pct = st.slider("A % (Revenue)", 50, 80, 70, key="cust_a")
+        b_pct = st.slider("B % (Revenue)", 10, 30, 20, key="cust_b")
+
+        if st.button("Run Customer Segmentation"):
+            df = pd.read_excel(xls, sheet_name="Customer")
+            seg = customer_segmentation(df,a_pct,b_pct)
+            st.dataframe(seg)
+
+            figs=[]
+            fig,ax=plt.subplots()
+            for n,g in seg.groupby("FinalClass"):
+                ax.scatter(g["Revenue"], g["ProfitMargin"]*100, label=n)
+            ax.legend(); st.pyplot(fig); figs.append(fig)
+
+            pdf_buf=export_pdf("Customer Segmentation",seg,figs)
+            st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="customer_segmentation.pdf")
+
+    elif st.session_state.selected_tile == "Supplier":
+        thr = st.slider("Threshold",1,10,5,key="sup_thr")
+
+        if st.button("Run Supplier Segmentation"):
+            df = pd.read_excel(xls, sheet_name="Supplier")
+            seg = kraljic_segmentation(df,thr)
+            st.dataframe(seg)
+
+            figs=[]
+            fig,ax=plt.subplots()
+            for n,g in seg.groupby("Segment"):
+                ax.scatter(g["ProfitImpact"], g["SupplyRisk"], label=n)
+            ax.axvline(thr); ax.axhline(thr); ax.legend()
+            st.pyplot(fig); figs.append(fig)
+
+            pdf_buf=export_pdf("Supplier Segmentation",seg,figs)
+            st.download_button("⬇️ Download PDF",data=pdf_buf,file_name="supplier_segmentation.pdf")
