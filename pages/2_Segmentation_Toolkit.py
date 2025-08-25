@@ -30,6 +30,7 @@ def abc_on_column(df: pd.DataFrame, key_col: str, value_col: str, a_pct: float, 
     return agg
 
 def export_pdf(title, df, figs):
+    """Create a simple PDF: title + first 20 rows of df + list of matplotlib figs."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4)
     elements = []
@@ -67,22 +68,19 @@ def df_to_excel_bytes(dfs_dict: dict):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         for name, df in dfs_dict.items():
+            # Excel sheet names limited to 31 chars
             df.to_excel(writer, sheet_name=name[:31], index=False)
-        writer.save()
     buf.seek(0)
     return buf
 
-# ---------- UI: Title + file upload ----------
+# ---------------- UI: Title + file upload ----------------
 st.title("Segmentation Toolkit — single-sheet input")
 st.markdown(
     "Upload one Excel file that contains a single table with all required columns. "
-    "You can map columns in the sidebar. The app will produce Product / Customer / Supplier segmentation."
+    "Map columns in the sidebar and run Product / Customer / Supplier segmentation."
 )
 
 uploaded_file = st.file_uploader("Upload Excel file (single sheet table)", type=["xlsx"], accept_multiple_files=False)
-
-# Default column names to show in mapping (will populate after upload)
-sample_cols = []
 
 # Sidebar for controls & mapping
 st.sidebar.header("Column mapping & params")
@@ -111,22 +109,24 @@ st.sidebar.dataframe(df.head())
 st.sidebar.markdown("---")
 st.sidebar.subheader("Map your columns (choose the appropriate column names)")
 
-item_col = st.sidebar.selectbox("Item / SKU column (for Product segmentation)", options=["(none)"] + sample_cols, index=1 if "Item" in sample_cols else 0)
-sales_col = st.sidebar.selectbox("Sales quantity column (for Product ABC)", options=["(none)"] + sample_cols, index=1 if "SalesQty" in sample_cols else 0)
-revenue_col = st.sidebar.selectbox("Revenue column (for Product/Totals)", options=["(none)"] + sample_cols, index=1 if "Revenue" in sample_cols else 0)
+item_col = st.sidebar.selectbox("Item / SKU column (for Product segmentation)", options=["(none)"] + sample_cols, index=(1 if "Item" in sample_cols else 0))
+sales_col = st.sidebar.selectbox("Sales quantity column (for Product ABC)", options=["(none)"] + sample_cols, index=(1 if "SalesQty" in sample_cols else 0))
+revenue_col = st.sidebar.selectbox("Revenue column (for Product/Totals)", options=["(none)"] + sample_cols, index=(1 if "Revenue" in sample_cols else 0))
 
-customer_col = st.sidebar.selectbox("Customer column (for Customer segmentation)", options=["(none)"] + sample_cols, index=1 if "Customer" in sample_cols else 0)
-cust_rev_col = st.sidebar.selectbox("Customer revenue column (optional - defaults to Revenue)", options=["(none)"] + sample_cols, index=sample_cols.index("Revenue") if "Revenue" in sample_cols else 0)
+customer_col = st.sidebar.selectbox("Customer column (for Customer segmentation)", options=["(none)"] + sample_cols, index=(1 if "Customer" in sample_cols else 0))
+# default cust_rev_col to revenue_col if present
+default_cust_rev_index = sample_cols.index("Revenue") if "Revenue" in sample_cols else 0
+cust_rev_col = st.sidebar.selectbox("Customer revenue column (optional - defaults to Revenue)", options=["(none)"] + sample_cols, index=default_cust_rev_index + 1 if "Revenue" in sample_cols else 0)
 cost_col = st.sidebar.selectbox("CostToServe / Cost column (optional, for Profit)", options=["(none)"] + sample_cols, index=0)
 
-supplier_col = st.sidebar.selectbox("Supplier column (for Supplier segmentation)", options=["(none)"] + sample_cols, index=1 if "Supplier" in sample_cols else 0)
+supplier_col = st.sidebar.selectbox("Supplier column (for Supplier segmentation)", options=["(none)"] + sample_cols, index=(1 if "Supplier" in sample_cols else 0))
 profitimpact_col = st.sidebar.selectbox("ProfitImpact column (for Kraljic)", options=["(none)"] + sample_cols, index=0)
 supplyrisk_col = st.sidebar.selectbox("SupplyRisk column (for Kraljic)", options=["(none)"] + sample_cols, index=0)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("ABC thresholds")
-a_pct = st.sidebar.slider("A % cutoff", min_value=10, max_value=90, value=70, step=1)
-b_pct = st.sidebar.slider("B % cutoff", min_value=5, max_value=40, value=20, step=1)
+a_pct = st.sidebar.slider("A % cutoff (percent)", min_value=10, max_value=90, value=70, step=1)
+b_pct = st.sidebar.slider("B % cutoff (percent)", min_value=5, max_value=40, value=20, step=1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("PDF / Excel export options")
@@ -168,21 +168,21 @@ st.markdown("---")
 # ---------------- Segmentation logic ----------------
 selected = st.session_state.selected_tile
 
-# Validate mapping and show helpful messages
 def col_selected(name):
     return name != "(none)"
 
+# --- PRODUCT SEGMENTATION ---
 if selected == "Product":
     st.header("Product segmentation")
-    st.markdown("ABC by **Sales quantity** + ABC by **Revenue** -> combined classes (A-A ... C-C).")
+    st.markdown("ABC by **Sales quantity** + ABC by **Revenue (within each Sales-ABC group)** → combined classes (A-A ... C-C).")
 
-    if not col_selected(item_col) or not col_selected(sales_col) or not col_selected(revenue_col):
+    if not (col_selected(item_col) and col_selected(sales_col) and col_selected(revenue_col)):
         st.warning("Please map Item, Sales quantity and Revenue columns in the sidebar to run Product segmentation.")
     else:
         st.write("Parameters:")
         st.write(f"- A % cutoff = **{a_pct}%**, B % cutoff = **{b_pct}%**")
         if st.button("Run Product segmentation"):
-            # Work on a copy
+            # Prepare dataframe
             dfp = df[[item_col, sales_col, revenue_col]].copy()
             dfp = dfp.rename(columns={item_col: "Item", sales_col: "SalesQty", revenue_col: "Revenue"})
 
@@ -190,57 +190,71 @@ if selected == "Product":
             dfp["SalesQty"] = pd.to_numeric(dfp["SalesQty"], errors="coerce").fillna(0)
             dfp["Revenue"] = pd.to_numeric(dfp["Revenue"], errors="coerce").fillna(0)
 
-            # ABC by Sales quantity (per item)
-            abc_sales = abc_on_column(dfp, "Item", "SalesQty", a_pct, b_pct)
-            abc_sales = abc_sales.rename(columns={"Value": "TotalSalesQty", "ABC": "ABC_Sales", "Cumulative%": "CumulPct_Sales"})
+            # Aggregate per item
+            items = dfp.groupby("Item", as_index=False).agg({"SalesQty":"sum","Revenue":"sum"})
 
-            # ABC by Revenue (per item)
-            abc_revenue = abc_on_column(dfp, "Item", "Revenue", a_pct, b_pct)
-            abc_revenue = abc_revenue.rename(columns={"Value": "TotalRevenue", "ABC": "ABC_Revenue", "Cumulative%": "CumulPct_Revenue"})
+            # ---- ABC by Sales (global) ----
+            items = items.sort_values("SalesQty", ascending=False).reset_index(drop=True)
+            total_sales = items["SalesQty"].sum()
+            items["CumulPct_Sales"] = np.where(total_sales>0, 100.0 * items["SalesQty"].cumsum() / total_sales, 0.0)
+            items["ABC_Sales"] = items["CumulPct_Sales"].apply(lambda p: _pct_bins_classifier(p, a_pct, b_pct))
 
-            # Merge to single summary
-            summary = pd.merge(abc_sales[["Item", "TotalSalesQty", "CumulPct_Sales", "ABC_Sales"]],
-                               abc_revenue[["Item", "TotalRevenue", "CumulPct_Revenue", "ABC_Revenue"]],
-                               on="Item", how="outer").fillna(0)
+            # ---- Revenue ABC WITHIN each Sales class (A/B/C) ----
+            items["CumulPct_Revenue_withinSales"] = 0.0
+            items["ABC_Revenue_withinSales"] = "C"  # default
+            for grp in ["A","B","C"]:
+                mask = items["ABC_Sales"] == grp
+                sub = items.loc[mask].sort_values("Revenue", ascending=False).copy()
+                tot_rev = sub["Revenue"].sum()
+                if tot_rev > 0 and len(sub) > 0:
+                    sub["CumulPct_Revenue_withinSales"] = 100.0 * sub["Revenue"].cumsum() / tot_rev
+                    sub["ABC_Revenue_withinSales"] = sub["CumulPct_Revenue_withinSales"].apply(lambda p: _pct_bins_classifier(p, a_pct, b_pct))
+                else:
+                    sub["CumulPct_Revenue_withinSales"] = 0.0
+                    sub["ABC_Revenue_withinSales"] = "C"
+                # write back to main
+                items.loc[sub.index, "CumulPct_Revenue_withinSales"] = sub["CumulPct_Revenue_withinSales"]
+                items.loc[sub.index, "ABC_Revenue_withinSales"] = sub["ABC_Revenue_withinSales"]
 
-            summary["Final_Class"] = summary["ABC_Sales"] + "-" + summary["ABC_Revenue"]
+            # Final class
+            items["Final_Class"] = items["ABC_Sales"] + "-" + items["ABC_Revenue_withinSales"]
 
             st.subheader("Result (preview)")
-            st.dataframe(summary.sort_values(["ABC_Sales", "ABC_Revenue", "TotalRevenue"], ascending=[True, True, False]).reset_index(drop=True))
+            st.dataframe(items.sort_values(["ABC_Sales","ABC_Revenue_withinSales","Revenue"], ascending=[True,True,False]).reset_index(drop=True))
 
             # Plots
             figs = []
-            # Bar of total revenue by item (top 30)
-            fig1, ax1 = plt.subplots(figsize=(8, 3.5))
-            toprev = summary.sort_values("TotalRevenue", ascending=False).head(30)
-            ax1.bar(range(len(toprev)), toprev["TotalRevenue"])
-            ax1.set_xticks(range(len(toprev)))
-            ax1.set_xticklabels(toprev["Item"], rotation=60, ha="right", fontsize=8)
+            # Pareto-like: SalesQty cumulative %
+ + revenue bars
+            fig1, ax1 = plt.subplots(figsize=(9, 3.5))
+            top = items.sort_values("Revenue", ascending=False).head(30)
+            ax1.bar(range(len(top)), top["Revenue"])
+            ax1.set_xticks(range(len(top)))
+            ax1.set_xticklabels(top["Item"], rotation=60, ha="right", fontsize=8)
             ax1.set_title("Top items by Revenue (top 30)")
-            st.pyplot(fig1)
-            figs.append(fig1)
+            st.pyplot(fig1); figs.append(fig1)
 
-            # Count of each Final_Class
+            # Count of each Final_Class (ensure all 9 combos appear)
             fig2, ax2 = plt.subplots(figsize=(6, 3))
-            counts = summary["Final_Class"].value_counts().reindex(
-                ["A-A","A-B","A-C","B-A","B-B","B-C","C-A","C-B","C-C"]
-            ).fillna(0)
+            order = ["A-A","A-B","A-C","B-A","B-B","B-C","C-A","C-B","C-C"]
+            counts = items["Final_Class"].value_counts().reindex(order).fillna(0)
             counts.plot(kind="bar", ax=ax2)
-            ax2.set_title("Counts by Final Class (SalesABC - RevenueABC)")
-            st.pyplot(fig2)
-            figs.append(fig2)
+            ax2.set_title("Counts by Final Class (SalesABC - RevenueWithinSalesABC)")
+            st.pyplot(fig2); figs.append(fig2)
+
+            # Show breakdown table for sanity
+            st.markdown("**Breakdown by Sales class**")
+            st.dataframe(items.groupby(["ABC_Sales","ABC_Revenue_withinSales"]).size().rename("Count").reset_index())
 
             # Download Excel
-            excel_bytes = df_to_excel_bytes({"Product_Segmentation": summary})
+            excel_bytes = df_to_excel_bytes({"Product_Segmentation": items})
             st.download_button("⬇️ Download segmentation (Excel)", data=excel_bytes, file_name="product_segmentation.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             # Download PDF (first 20 rows + plots)
-            if include_plots_in_pdf:
-                pdf_buf = export_pdf("Product Segmentation", summary, figs)
-            else:
-                pdf_buf = export_pdf("Product Segmentation", summary, [])
+            pdf_buf = export_pdf("Product Segmentation", items, figs if include_plots_in_pdf else [])
             st.download_button("⬇️ Download PDF", data=pdf_buf, file_name="product_segmentation.pdf", mime="application/pdf")
 
+# --- CUSTOMER SEGMENTATION ---
 elif selected == "Customer":
     st.header("Customer segmentation")
     st.markdown("Per-customer ABC on Revenue (or mapped Customer revenue column). Also shows ProfitMargin if Cost column mapped.")
@@ -259,6 +273,7 @@ elif selected == "Customer":
                 cust_agg = cust_agg.rename(columns={"Value": "TotalRevenue", "ABC": "ABC_Revenue", "Cumulative%":"CumulPct_Revenue"})
 
                 # ProfitMargin if cost column provided
+                figs = []
                 if col_selected(cost_col) and cost_col in df.columns:
                     dfc2 = df[[customer_col, cust_rev_col, cost_col]].copy().rename(columns={customer_col: "Customer", cust_rev_col: "Revenue", cost_col: "Cost"})
                     dfc2["Revenue"] = pd.to_numeric(dfc2["Revenue"], errors="coerce").fillna(0)
@@ -272,14 +287,19 @@ elif selected == "Customer":
                 st.dataframe(cust_agg.sort_values("TotalRevenue", ascending=False).reset_index(drop=True))
 
                 # Scatter plot Revenue vs ProfitMargin (if available)
-                figs=[]
                 if "ProfitMargin" in cust_agg.columns:
-                    fig, ax = plt.subplots()
-                    ax.scatter(cust_agg["TotalRevenue"], cust_agg["ProfitMargin"]*100)
-                    ax.set_xlabel("TotalRevenue")
-                    ax.set_ylabel("ProfitMargin (%)")
-                    ax.set_title("Revenue vs ProfitMargin")
-                    st.pyplot(fig); figs.append(fig)
+                    figc, axc = plt.subplots(figsize=(6,4))
+                    axc.scatter(cust_agg["TotalRevenue"], cust_agg["ProfitMargin"]*100)
+                    axc.set_xlabel("TotalRevenue")
+                    axc.set_ylabel("ProfitMargin (%)")
+                    axc.set_title("Revenue vs ProfitMargin")
+                    st.pyplot(figc); figs.append(figc)
+
+                # bar of ABC classes
+                figcb, axcb = plt.subplots(figsize=(6,3))
+                cust_agg["ABC_Revenue"].value_counts().reindex(["A","B","C"]).fillna(0).plot(kind="bar", ax=axcb)
+                axcb.set_title("Customers by ABC (Revenue)")
+                st.pyplot(figcb); figs.append(figcb)
 
                 excel_bytes = df_to_excel_bytes({"Customer_Segmentation": cust_agg})
                 st.download_button("⬇️ Download Customer segmentation (Excel)", data=excel_bytes, file_name="customer_segmentation.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -287,6 +307,7 @@ elif selected == "Customer":
                 pdf_buf = export_pdf("Customer Segmentation", cust_agg, figs if include_plots_in_pdf else [])
                 st.download_button("⬇️ Download PDF", data=pdf_buf, file_name="customer_segmentation.pdf", mime="application/pdf")
 
+# --- SUPPLIER SEGMENTATION ---
 elif selected == "Supplier":
     st.header("Supplier segmentation (Kraljic-style)")
     st.markdown("Requires mapping of Supplier, ProfitImpact, and SupplyRisk columns (or else the app will explain what's missing).")
@@ -299,9 +320,11 @@ elif selected == "Supplier":
         thr = st.slider("Threshold for high/low (same scale as your ProfitImpact and SupplyRisk)", min_value=0.0, max_value=100.0, value=50.0, step=1.0)
         if st.button("Run Supplier segmentation"):
             dfs = df[[supplier_col, profitimpact_col, supplyrisk_col]].copy().rename(columns={supplier_col: "Supplier", profitimpact_col: "ProfitImpact", supplyrisk_col: "SupplyRisk"})
+            # ensure numeric
             dfs["ProfitImpact"] = pd.to_numeric(dfs["ProfitImpact"], errors="coerce").fillna(0)
             dfs["SupplyRisk"] = pd.to_numeric(dfs["SupplyRisk"], errors="coerce").fillna(0)
 
+            seg = dfs.groupby("Supplier", as_index=False).agg({"ProfitImpact":"mean","SupplyRisk":"mean"})
             def _label_row(r):
                 hi_imp = r["ProfitImpact"] >= thr
                 hi_risk = r["SupplyRisk"] >= thr
@@ -312,26 +335,26 @@ elif selected == "Supplier":
                 if not hi_imp and hi_risk:
                     return "Bottleneck"
                 return "Non-Critical"
-
-            seg = dfs.groupby("Supplier", as_index=False).agg({"ProfitImpact":"mean","SupplyRisk":"mean"})
             seg["Segment"] = seg.apply(_label_row, axis=1)
 
             st.subheader("Supplier segmentation (preview)")
             st.dataframe(seg.sort_values(["ProfitImpact","SupplyRisk"], ascending=False).reset_index(drop=True))
 
-            # Scatter plot
-            fig, ax = plt.subplots()
+            # Scatter plot Kraljic matrix
+            figs = []
+            fig, ax = plt.subplots(figsize=(6,5))
             for name, g in seg.groupby("Segment"):
-                ax.scatter(g["ProfitImpact"], g["SupplyRisk"], label=name)
+                ax.scatter(g["ProfitImpact"], g["SupplyRisk"], label=name, s=50)
             ax.axvline(thr, linestyle="--"); ax.axhline(thr, linestyle="--")
             ax.set_xlabel("ProfitImpact"); ax.set_ylabel("SupplyRisk")
+            ax.set_title("Kraljic matrix (ProfitImpact vs SupplyRisk)")
             ax.legend()
-            st.pyplot(fig)
+            st.pyplot(fig); figs.append(fig)
 
             excel_bytes = df_to_excel_bytes({"Supplier_Segmentation": seg})
             st.download_button("⬇️ Download Supplier segmentation (Excel)", data=excel_bytes, file_name="supplier_segmentation.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-            pdf_buf = export_pdf("Supplier Segmentation", seg, [fig] if include_plots_in_pdf else [])
+            pdf_buf = export_pdf("Supplier Segmentation", seg, figs if include_plots_in_pdf else [])
             st.download_button("⬇️ Download PDF", data=pdf_buf, file_name="supplier_segmentation.pdf", mime="application/pdf")
 
 # Footer
