@@ -68,7 +68,6 @@ def df_to_excel_bytes(dfs_dict: dict):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         for name, df in dfs_dict.items():
-            # Excel sheet names limited to 31 chars
             df.to_excel(writer, sheet_name=name[:31], index=False)
     buf.seek(0)
     return buf
@@ -114,7 +113,7 @@ sales_col = st.sidebar.selectbox("Sales quantity column (for Product ABC)", opti
 revenue_col = st.sidebar.selectbox("Revenue column (for Product/Totals)", options=["(none)"] + sample_cols, index=(1 if "Revenue" in sample_cols else 0))
 
 customer_col = st.sidebar.selectbox("Customer column (for Customer segmentation)", options=["(none)"] + sample_cols, index=(1 if "Customer" in sample_cols else 0))
-# default cust_rev_col to revenue_col if present
+# default cust_rev_col to revenue if present
 default_cust_rev_index = sample_cols.index("Revenue") if "Revenue" in sample_cols else 0
 cust_rev_col = st.sidebar.selectbox("Customer revenue column (optional - defaults to Revenue)", options=["(none)"] + sample_cols, index=default_cust_rev_index + 1 if "Revenue" in sample_cols else 0)
 cost_col = st.sidebar.selectbox("CostToServe / Cost column (optional, for Profit)", options=["(none)"] + sample_cols, index=0)
@@ -224,8 +223,9 @@ if selected == "Product":
 
             # Plots
             figs = []
-            # Pareto-like: SalesQty cumulative %
- + revenue bars
+
+            # Top revenue bar (top 30)
+            # (Pareto-like view: items sorted by revenue with cumulative info in the table above)
             fig1, ax1 = plt.subplots(figsize=(9, 3.5))
             top = items.sort_values("Revenue", ascending=False).head(30)
             ax1.bar(range(len(top)), top["Revenue"])
