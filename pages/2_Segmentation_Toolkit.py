@@ -72,18 +72,19 @@ def create_summary_pdf(result_df, a_pct, b_pct, figs):
 
     story.append(Paragraph("Sales Summary", styles["Heading2"]))
     sales_table_data = [
-        ["Total Sales", f"{int(total_sales):,}", "A Sales", f"{int(sales_split['A']):,}",
-         "B Sales", f"{int(sales_split['B']):,}", "C Sales", f"{int(sales_split['C']):,}"]
+        ["Total Sales", f"{int(total_sales):,}"],
+        ["A Sales", f"{int(sales_split['A']):,}"],
+        ["B Sales", f"{int(sales_split['B']):,}"],
+        ["C Sales", f"{int(sales_split['C']):,}"],
     ]
-    table1 = Table(sales_table_data, colWidths=[70, 80, 70, 80, 70, 80, 70, 80])
+    table1 = Table(sales_table_data, colWidths=[150, 150])
     table1.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
-        ("GRID", (0, 0), (-1, -1), 0.6, colors.black),
+        ("GRID", (0, 0), (-1, -1), 0.8, colors.black),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     story.append(table1)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 20))
 
     # ---- Revenue Summary ----
     total_revenue = result_df["Revenue"].sum()
@@ -92,41 +93,32 @@ def create_summary_pdf(result_df, a_pct, b_pct, figs):
 
     story.append(Paragraph("Revenue Summary", styles["Heading2"]))
     revenue_table_data = [["Total Revenue", f"{int(total_revenue):,}"]]
-
-    row = []
-    for i, (cls, val) in enumerate(revenue_split.items(), 1):
-        row.extend([cls, f"{int(val):,}"])
-        if i % 4 == 0 or i == len(revenue_split):
-            # pad row to avoid empty cells
-            while len(row) < 8:
-                row.extend(["-", "-"])
-            revenue_table_data.append(row)
-            row = []
-
-    table2 = Table(revenue_table_data, colWidths=[70, 80, 70, 80, 70, 80, 70, 80])
+    for cls, val in revenue_split.items():
+        revenue_table_data.append([cls, f"{int(val):,}"])
+    table2 = Table(revenue_table_data, colWidths=[150, 150])
     table2.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
-        ("GRID", (0, 0), (-1, -1), 0.6, colors.black),
+        ("GRID", (0, 0), (-1, -1), 0.8, colors.black),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     story.append(table2)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 20))
 
     # ---- Inputs ----
     story.append(Paragraph("Inputs Used", styles["Heading2"]))
     inputs_table_data = [
-        ["A % Cutoff", f"{a_pct}%", "B % Cutoff", f"{b_pct}%", "Total Items", str(len(result_df))]
+        ["A % Cutoff", f"{a_pct}%"],
+        ["B % Cutoff", f"{b_pct}%"],
+        ["C % Cutoff", f"{100 - (a_pct + b_pct)}%"],
     ]
-    table3 = Table(inputs_table_data, colWidths=[70, 80, 70, 80, 70, 80])
+    table3 = Table(inputs_table_data, colWidths=[150, 150])
     table3.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("GRID", (0, 0), (-1, -1), 0.6, colors.black),
+        ("GRID", (0, 0), (-1, -1), 0.8, colors.black),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     story.append(table3)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 20))
 
     # ---- Graphs ----
     story.append(Paragraph("Graphs", styles["Heading2"]))
