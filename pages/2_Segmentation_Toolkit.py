@@ -73,9 +73,7 @@ def create_summary_pdf(result_df, a_pct, b_pct, figs):
     story.append(Paragraph("Sales Summary", styles["Heading2"]))
     sales_table_data = [
         ["Total Sales", f"{int(total_sales):,}"],
-        ["A Sales", f"{int(sales_split['A']):,}"],
-        ["B Sales", f"{int(sales_split['B']):,}"],
-        ["C Sales", f"{int(sales_split['C']):,}"],
+        ["A Sales", f"{int(sales_split['A']):,}"], ["B Sales", f"{int(sales_split['B']):,}"], ["C Sales", f"{int(sales_split['C']):,}"],
     ]
     table1 = Table(sales_table_data, colWidths=[150, 150])
     table1.setStyle(TableStyle([
